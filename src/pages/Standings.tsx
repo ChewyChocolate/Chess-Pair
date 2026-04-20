@@ -5,14 +5,15 @@ import { getPlayerStats } from '../lib/playerStats';
 import { Button } from '../components/ui/Button';
 import { Download, AlertTriangle, Users, FileText, Settings, ArrowUp, ArrowDown, X, Plus } from 'lucide-react';
 import { PlayerProfileModal } from '../components/PlayerProfileModal';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface StandingsTableProps {
   tournament: any;
   standings: any[];
   compact?: boolean;
   showWarnings?: boolean;
+  onPlayerClick?: (playerId: string) => void;
 }
 
 export function StandingsTable({ tournament, standings, onPlayerClick, compact, showWarnings = true }: StandingsTableProps) {
@@ -52,7 +53,7 @@ export function StandingsTable({ tournament, standings, onPlayerClick, compact, 
                     >
                       {player.name}
                     </button>
-                    {!compact && showWarnings && hasColorWarning && (
+                    {showWarnings && hasColorWarning && (
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" title="Color balance warning" />
                     )}
                   </div>
@@ -189,7 +190,7 @@ export function Standings() {
       p.mostWins
     ]);
 
-    autoTable(doc, {
+    (doc as any).autoTable({
       startY: subTitle ? 42 : 36,
       head: [['Rank', 'Name', 'Rating', 'Club', 'Pts', 'BH', 'MBH', 'SB', 'MW']],
       body: tableData,
@@ -219,7 +220,7 @@ export function Standings() {
         t.sonnebornBerger
       ]);
 
-      autoTable(doc, {
+      (doc as any).autoTable({
         startY: 30,
         head: [['Rank', 'Team', 'Match Pts', 'Game Pts', 'SB']],
         body: teamData,

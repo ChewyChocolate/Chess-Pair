@@ -385,3 +385,29 @@ export const useTournamentStore = create<TournamentStore>()(
     }
   )
 );
+
+// Helpful for debugging or testing in console
+if (typeof window !== 'undefined') {
+  (window as any).generateRandomResults = () => {
+    const state = useTournamentStore.getState();
+    const tournament = state.tournaments.find(t => t.id === state.activeTournamentId);
+    if (!tournament) {
+      console.error('No active tournament found.');
+      return;
+    }
+    
+    const results: MatchResult[] = ['1-0', '0-1', '0.5-0.5'];
+    
+    let updatedMatches = 0;
+    
+    tournament.matches.forEach(match => {
+      if (match.round === tournament.currentRound && !match.result && match.blackId) {
+        const randomResult = results[Math.floor(Math.random() * results.length)];
+        state.updateMatchResult(match.id, randomResult);
+        updatedMatches++;
+      }
+    });
+    
+    console.log(`Generated random results for ${updatedMatches} matches in round ${tournament.currentRound}.`);
+  };
+}

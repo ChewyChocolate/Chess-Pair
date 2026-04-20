@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useTournamentStore, MatchResult, Match } from '../store/useTournamentStore';
 import { Button } from '../components/ui/Button';
-import { generateSwiss, generateRoundRobin, generateTeamSwiss, generateTeamRoundRobin, generateKnockout, generateTeamKnockout } from '../lib/pairing';
-import { Printer, Undo2, ArrowLeftRight, X, FileText } from 'lucide-react';
+import { generateSwiss, generateRoundRobin, generateTeamSwiss, generateTeamRoundRobin, generateKnockout, generateTeamKnockout, calculateScores } from '../lib/pairing';
+import { Printer, Undo2, ArrowLeftRight, X, FileText, AlertTriangle } from 'lucide-react';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { jsPDF } from 'jspdf';
 
@@ -33,6 +33,7 @@ export function Rounds() {
   const [selectedForSwap, setSelectedForSwap] = useState<{ matchId: string, isWhite: boolean } | null>(null);
   const [dialogConfig, setDialogConfig] = useState<{ isOpen: boolean, title?: string, message: string, isAlert?: boolean, onConfirm: () => void } | null>(null);
   const [splitView, setSplitView] = useState(false);
+  const [showWarnings, setShowWarnings] = useState(true);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [pgnMatchId, setPgnMatchId] = useState<string | null>(null);
 
@@ -41,6 +42,22 @@ export function Rounds() {
     if (!tournament) return [];
     return calculateStandings(tournament, selectedRound);
   }, [tournament, selectedRound, tournament?.matches]);
+
+  const previousScores = useMemo(() => {
+    if (!tournament) return {};
+    return calculateScores(tournament, selectedRound - 1).scores;
+  }, [tournament, selectedRound, tournament?.matches]);
+
+  const getTeamMatchScore = (matches: Match[]) => {
+    let w = 0;
+    let b = 0;
+    matches.forEach(m => {
+      if (m.result === '1-0' || m.result === 'forfeit-black') w++;
+      else if (m.result === '0-1' || m.result === 'forfeit-white') b++;
+      else if (m.result === '0.5-0.5') { w += 0.5; b += 0.5; }
+    });
+    return `${w} - ${b}`;
+  };
 
   if (!tournament) {
     return <div className="text-center text-slate-500 mt-10">Please create a tournament first.</div>;
@@ -290,8 +307,15 @@ export function Rounds() {
               swapMode && match.result !== 'bye' ? 'hover:bg-slate-200 dark:hover:bg-slate-700 px-2 py-1 rounded cursor-pointer' : 'text-slate-900 dark:text-white hover:underline'
             }`}
           >
-            {getPlayerName(match.whiteId)}
-            <span className="text-lg leading-none" title="White">♔</span>
+            <span className="flex items-center gap-2 justify-end">
+              {getPlayerName(match.whiteId)}
+              {match.whiteId && (
+                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                  {previousScores[match.whiteId] || 0}
+                </span>
+              )}
+              <span className="text-lg leading-none" title="White">♔</span>
+            </span>
           </button>
         </td>
         <td className="px-6 py-4 text-center">
@@ -325,8 +349,15 @@ export function Rounds() {
                 swapMode ? 'hover:bg-slate-200 dark:hover:bg-slate-700 px-2 py-1 rounded cursor-pointer' : 'text-slate-900 dark:text-white hover:underline'
               }`}
             >
-              <span className="text-lg leading-none" title="Black">♚</span>
-              {getPlayerName(match.blackId)}
+              <span className="flex items-center gap-2">
+                <span className="text-lg leading-none" title="Black">♚</span>
+                {match.blackId && (
+                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                    {previousScores[match.blackId] || 0}
+                  </span>
+                )}
+                {getPlayerName(match.blackId)}
+              </span>
             </button>
           )}
         </td>
@@ -509,7 +540,13 @@ export function Rounds() {
                       <React.Fragment key={teamMatchId}>
                         <tr className="bg-slate-100 dark:bg-slate-800/80">
                           <td colSpan={5} className="px-6 py-2 font-bold text-center text-slate-700 dark:text-slate-300">
-                            {teamWhite} vs {teamBlack}
+                            <div className="flex items-center justify-center gap-4">
+                              <span className="flex-1 text-right">{teamWhite}</span>
+                              <span className="bg-slate-200 dark:bg-slate-700 px-3 py-1 rounded-full text-sm font-black tabular-nums border border-slate-300 dark:border-slate-600">
+                                {getTeamMatchScore(matches)}
+                              </span>
+                              <span className="flex-1 text-left">{teamBlack}</span>
+                            </div>
                           </td>
                         </tr>
                         {matches.map(renderMatchRow)}
@@ -566,20 +603,30 @@ export function Rounds() {
 
         {splitView && (
           <div className="hidden xl:block w-full print:hidden">
-             <div className="flex justify-between items-end mb-4 px-2">
+            <div className="flex justify-between items-end mb-4 px-2">
+              <div className="flex items-center gap-4">
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-white">Live Standings</h3>
                   <p className="text-xs text-slate-500">Updates as results are entered</p>
                 </div>
-                <div className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-2.5 py-1 rounded-full font-medium">
-                  Round {selectedRound}
-                </div>
+                <button
+                  onClick={() => setShowWarnings(!showWarnings)}
+                  className={`p-1.5 rounded-md border transition-colors ${showWarnings ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}
+                  title={showWarnings ? "Hide Warnings" : "Show Warnings"}
+                >
+                  <AlertTriangle className={`w-3.5 h-3.5 ${showWarnings ? 'text-amber-500' : 'text-slate-400'}`} />
+                </button>
+              </div>
+              <div className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-2.5 py-1 rounded-full font-medium">
+                Round {selectedRound}
+              </div>
             </div>
             <StandingsTable 
               tournament={tournament} 
               standings={activeStandings} 
               compact={true}
               onPlayerClick={setSelectedPlayerId}
+              showWarnings={showWarnings}
             />
           </div>
         )}

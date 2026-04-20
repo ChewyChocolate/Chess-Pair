@@ -62,6 +62,9 @@ export function calculateScores(tournament: Tournament, upToRound?: number) {
       } else if (roundScores[m.whiteId] < roundScores[m.blackId]) {
         floatHistory[m.whiteId].push(1);  // Up-float
         floatHistory[m.blackId].push(-1); // Down-float
+      } else {
+        floatHistory[m.whiteId].push(0);
+        floatHistory[m.blackId].push(0);
       }
 
       if (m.result === '1-0') {
@@ -164,6 +167,12 @@ export function generateRoundRobin(players: Player[], round: number): Match[] {
   return matches;
 }
 
+export function checkColorSequence(seq: ('W' | 'B')[], newColor: 'W' | 'B') {
+  if (!seq || seq.length < 2) return true;
+  const last2 = seq.slice(-2);
+  return !(last2[0] === newColor && last2[1] === newColor);
+}
+
 export function generateSwiss(tournament: Tournament, round: number): Match[] {
   const { scores, played, colorBalance, colorSequence, floatHistory, byes } = calculateScores(tournament);
   
@@ -222,7 +231,7 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
   const isLastRound = round === tournament.totalRounds;
 
   // Helper to check if two players can be paired
-  const canPair = (p1: Player, p2: Player, relaxColorBalance: boolean = false) => {
+  const canPair = (p1: Player, p2: Player, relaxColorBalance: boolean = false, relaxFloats: boolean = false) => {
     // 1. Basic: Not played before
     if (played[p1.id].has(p2.id)) return { valid: false, p1CanW: false, p1CanB: false };
 
@@ -230,12 +239,6 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
     if (tournament.avoidClubPairings && p1.club && p2.club && p1.club === p2.club) return { valid: false, p1CanW: false, p1CanB: false };
 
     // 3. Color constraints (FIDE)
-    const checkColorSequence = (seq: ('W' | 'B')[], newColor: 'W' | 'B') => {
-      if (seq.length < 2) return true;
-      const last2 = seq.slice(-2);
-      return !(last2[0] === newColor && last2[1] === newColor);
-    };
-    
     const checkColorBalance = (balance: number, newColor: 'W' | 'B') => {
       const newBalance = newColor === 'W' ? balance + 1 : balance - 1;
       return Math.abs(newBalance) <= 2;
@@ -266,7 +269,7 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
     const lastFloatP2 = floatHistory[p2.id] && floatHistory[p2.id].length > 0 ? floatHistory[p2.id][floatHistory[p2.id].length - 1] : 0;
     
     const isFloat = scores[p1.id] !== scores[p2.id];
-    if (isFloat) {
+    if (isFloat && !relaxFloats) {
       const p1FloatDir = scores[p1.id] > scores[p2.id] ? -1 : 1;
       const p2FloatDir = scores[p2.id] > scores[p1.id] ? -1 : 1;
       
@@ -278,7 +281,7 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
   };
 
   // Backtracking pairing function for a group of players
-  const pairPlayers = (toPair: Player[], relaxColorBalance: boolean = false): Match[] | null => {
+  const pairPlayers = (toPair: Player[], relaxColorBalance: boolean = false, relaxFloats: boolean = false): Match[] | null => {
     if (toPair.length === 0) return [];
     
     const p1 = toPair[0];
@@ -291,11 +294,10 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
 
     for (const i of searchOrder) {
       const p2 = toPair[i];
-      const check = canPair(p1, p2, relaxColorBalance);
+      const check = canPair(p1, p2, relaxColorBalance, relaxFloats);
       if (check.valid) {
         const remaining = toPair.slice(1, i).concat(toPair.slice(i + 1));
-        const subMatches = pairPlayers(remaining, relaxColorBalance);
-        
+        const subMatches = pairPlayers(remaining, relaxColorBalance, relaxFloats);        
         if (subMatches !== null) {
           // Determine colors based on strict validity constraints
           let p1Color: 'W' | 'B' = 'W';
@@ -358,12 +360,33 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
     // If not last group, we must leave at least one if total is odd
     const targetCount = (currentToPair.length % 2 === 0 || isLastScoreGroup) ? currentToPair.length : currentToPair.length - 1;
     
-    // Try strict pairing first
-    let groupMatches = pairPlayers(currentToPair.slice(0, targetCount), false);
+    // Try strict pairing first, allowing progressive floats
+    let groupMatches: Match[] | null = null;
+    let pairedCount = targetCount;
+
+    while (pairedCount > 0) {
+      groupMatches = pairPlayers(currentToPair.slice(0, pairedCount), false, false);
+      if (groupMatches) break;
+      pairedCount -= 2;
+    }
     
-    // In the last round, pairing the highest-placed players against each other takes precedence over color balance.
-    if (!groupMatches && isLastRound) {
-      groupMatches = pairPlayers(currentToPair.slice(0, targetCount), true);
+    // In the last round or last score group, if we couldn't pair everyone, relax constraints incrementally
+    if (!groupMatches && (isLastRound || isLastScoreGroup)) {
+      pairedCount = targetCount;
+      while (pairedCount > 0) {
+        groupMatches = pairPlayers(currentToPair.slice(0, pairedCount), true, false); // relax colors
+        if (groupMatches) break;
+        pairedCount -= 2;
+      }
+      
+      if (!groupMatches) {
+        pairedCount = targetCount;
+        while (pairedCount > 0) {
+          groupMatches = pairPlayers(currentToPair.slice(0, pairedCount), true, true); // relax colors and floats
+          if (groupMatches) break;
+          pairedCount -= 2;
+        }
+      }
     }
     
     if (groupMatches) {
@@ -373,9 +396,11 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
         pairedPlayers.add(m.whiteId!);
         pairedPlayers.add(m.blackId!);
       });
-      currentToPair = currentToPair.slice(targetCount);
-    } else if (isLastScoreGroup) {
-      // Fallback for last group if backtracking fails: greedy pairing ignoring some constraints
+      currentToPair = currentToPair.slice(pairedCount);
+    } 
+
+    if (isLastScoreGroup && currentToPair.length > 1) {
+      // Fallback for last group if everything else fails: greedy pairing ignoring constraints
       while (currentToPair.length > 1) {
         const p1 = currentToPair[0];
         let p2Index = 1;
@@ -388,10 +413,39 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
         const p2 = currentToPair[p2Index];
         
         // Simple color assignment fallback
-        const p1Pref = colorBalance[p1.id] > 0 ? 'B' : colorBalance[p1.id] < 0 ? 'W' : null;
-        let whiteId = p1Pref === 'B' ? p2.id : p1.id;
-        let blackId = p1Pref === 'B' ? p1.id : p2.id;
-        
+        // Simple color assignment fallback, trying to strictly avoid 3 in a row
+        const p1SeqW = checkColorSequence(colorSequence[p1.id], 'W');
+        const p1SeqB = checkColorSequence(colorSequence[p1.id], 'B');
+        const p2SeqW = checkColorSequence(colorSequence[p2.id], 'W');
+        const p2SeqB = checkColorSequence(colorSequence[p2.id], 'B');
+
+        let p1Color: 'W' | 'B' = 'W';
+
+        if (p1SeqW && p2SeqB && (!p1SeqB || !p2SeqW)) {
+          p1Color = 'W';
+        } else if (p1SeqB && p2SeqW && (!p1SeqW || !p2SeqB)) {
+          p1Color = 'B';
+        } else {
+          // Check alternating preferences
+          const getP1Alt = () => colorSequence[p1.id]?.length ? (colorSequence[p1.id].slice(-1)[0] === 'W' ? 'B' : 'W') : null;
+          const getP2Alt = () => colorSequence[p2.id]?.length ? (colorSequence[p2.id].slice(-1)[0] === 'W' ? 'B' : 'W') : null;
+          const p1Alt = getP1Alt();
+          const p2Alt = getP2Alt();
+
+          const p1Pref = colorBalance[p1.id] > 0 ? 'B' : colorBalance[p1.id] < 0 ? 'W' : p1Alt;
+          const p2Pref = colorBalance[p2.id] > 0 ? 'B' : colorBalance[p2.id] < 0 ? 'W' : p2Alt;
+
+          if (p1Pref === 'W' || p2Pref === 'B') {
+            p1Color = 'W';
+          } else if (p1Pref === 'B' || p2Pref === 'W') {
+            p1Color = 'B';
+          } else {
+            p1Color = Math.random() > 0.5 ? 'W' : 'B';
+          }
+        }
+
+        let whiteId = p1Color === 'W' ? p1.id : p2.id;
+        let blackId = p1Color === 'W' ? p2.id : p1.id;        
         matches.push({
           id: uuidv4(),
           round,
