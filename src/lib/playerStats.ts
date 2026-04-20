@@ -13,6 +13,10 @@ export function getPlayerStats(tournament: Tournament, playerId: string) {
   let consecutiveColors = 0;
   let lastColor: 'W' | 'B' | null = null;
   let colorDiff = 0; // W is +1, B is -1
+  let byeCount = 0;
+
+  const player = tournament.players.find(p => p.id === playerId);
+  const requestedByeRounds = new Set(player?.requestedByes ?? []);
 
   const sortedMatches = [...tournament.matches]
     .filter(m => m.whiteId === playerId || m.blackId === playerId)
@@ -43,9 +47,17 @@ export function getPlayerStats(tournament: Tournament, playerId: string) {
         consecutiveColors = 1;
       }
     }
+
+    // Count system byes (not player-requested byes)
+    if (m.result === 'bye' && !requestedByeRounds.has(m.round)) {
+      byeCount++;
+    }
   }
 
-  const hasColorWarning = consecutiveColors >= 3 || Math.abs(colorDiff) >= 2;
+  // Color warning: 3 or more consecutive same color
+  const hasColorWarning = consecutiveColors >= 3;
+  // Bye warning: received more than 1 system bye
+  const hasByeWarning = byeCount > 1;
 
-  return { stats, consecutiveColors, lastColor, colorDiff, hasColorWarning };
+  return { stats, consecutiveColors, lastColor, colorDiff, hasColorWarning, byeCount, hasByeWarning };
 }

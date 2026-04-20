@@ -18,7 +18,7 @@ export function PlayerProfileModal({ playerId, onClose }: PlayerProfileModalProp
   const player = tournament.players.find(p => p.id === playerId);
   if (!player) return null;
 
-  const { stats, hasColorWarning, colorDiff, consecutiveColors, lastColor } = getPlayerStats(tournament, playerId);
+  const { stats, hasColorWarning, colorDiff, consecutiveColors, lastColor, hasByeWarning, byeCount } = getPlayerStats(tournament, playerId);
 
   const totalScore = stats.reduce((acc, s) => acc + (s.result === '1' ? 1 : s.result === '0.5' ? 0.5 : 0), 0);
 
@@ -60,6 +60,15 @@ export function PlayerProfileModal({ playerId, onClose }: PlayerProfileModalProp
               )}
             </div>
           </div>
+
+          {hasByeWarning && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+              <span className="text-red-500 mt-0.5 text-base leading-none">⚠</span>
+              <div className="text-sm text-red-700 font-medium">
+                Bye warning: this player has received {byeCount} system byes.
+              </div>
+            </div>
+          )}
 
           <div className="mb-6 p-4 bg-red-50/50 border border-red-100 rounded-lg">
             <h3 className="font-semibold text-slate-900 mb-2">Tournament Penalties</h3>

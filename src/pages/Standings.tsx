@@ -41,6 +41,7 @@ export function StandingsTable({ tournament, standings, onPlayerClick, compact, 
           {standings.map((player, index) => {
             const stats = getPlayerStats(tournament, player.id);
             const hasColorWarning = stats?.hasColorWarning || false;
+            const hasByeWarning = stats?.hasByeWarning || false;
 
             return (
               <tr key={player.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
@@ -54,7 +55,10 @@ export function StandingsTable({ tournament, standings, onPlayerClick, compact, 
                       {player.name}
                     </button>
                     {showWarnings && hasColorWarning && (
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" title="Color balance warning" />
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" title={`Color warning: ${stats.consecutiveColors} ${stats.lastColor} in a row`} />
+                    )}
+                    {showWarnings && hasByeWarning && (
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" title={`Bye warning: received ${stats.byeCount} byes`} />
                     )}
                   </div>
                 </td>
