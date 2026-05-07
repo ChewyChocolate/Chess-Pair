@@ -177,8 +177,20 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
   const { scores, played, colorBalance, colorSequence, floatHistory, byes } = calculateScores(tournament);
   
   const matches: Match[] = [];
+  const existingRoundMatches = tournament.matches.filter(m => m.round === round);
   let boardNumber = 1;
+  // If there are existing matches (e.g. manual pairings), start board numbering after them
+  if (existingRoundMatches.length > 0) {
+    boardNumber = Math.max(...existingRoundMatches.map(m => m.boardNumber || 0)) + 1;
+    if (boardNumber === 1000) boardNumber = 1; // if only byes (999) exist
+  }
   const pairedPlayers = new Set<string>();
+
+  // Add players from existing matches in this round to pairedPlayers so we skip them
+  existingRoundMatches.forEach(m => {
+    if (m.whiteId) pairedPlayers.add(m.whiteId);
+    if (m.blackId) pairedPlayers.add(m.blackId);
+  });
 
   // 1. Process forced pairings
   if (tournament.forcedPairings && tournament.forcedPairings.length > 0) {

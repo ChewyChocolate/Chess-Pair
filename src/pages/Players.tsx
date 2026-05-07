@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useTournamentStore } from '../store/useTournamentStore';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Trash2, Upload, UserMinus, UserCheck } from 'lucide-react';
+import { Trash2, Upload, Download, UserMinus, UserCheck, X } from 'lucide-react';
 
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 
@@ -10,7 +10,7 @@ export function Players() {
   const tournaments = useTournamentStore(s => s.tournaments);
   const activeId = useTournamentStore(s => s.activeTournamentId);
   const tournament = tournaments?.find(t => t.id === activeId);
-  const { addPlayer, bulkAddPlayers, removePlayer, updatePlayer, withdrawPlayer, rejoinPlayer } = useTournamentStore();
+  const { addPlayer, bulkAddPlayers, removePlayer, clearPlayers, updatePlayer, withdrawPlayer, rejoinPlayer } = useTournamentStore();
   const [name, setName] = useState('');
   const [rating, setRating] = useState('');
   const [title, setTitle] = useState('');
@@ -121,6 +121,30 @@ export function Players() {
     }
   };
 
+  const handleExportCsv = () => {
+    const headers = ['Name', 'Rating', 'Title', 'Club', 'Status', 'Requested Byes'];
+    const rows = tournament.players.map(p => [
+      p.name,
+      p.rating ?? '',
+      p.title ?? '',
+      p.club ?? '',
+      p.withdrawn ? 'Withdrawn' : p.active ? 'Active' : 'Inactive',
+      (p.requestedByes ?? []).join(';'),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${tournament.name.replace(/\s+/g, '_')}_players.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleRequestedByes = (id: string, val: string) => {
     const byes = val.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
     updatePlayer(id, { requestedByes: byes });
@@ -130,21 +154,43 @@ export function Players() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Players</h2>
-        {tournament.status !== 'completed' && (
-          <div>
-            <input 
-              type="file" 
-              accept=".csv" 
-              className="hidden" 
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-            />
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-2">
-              <Upload className="w-4 h-4" />
-              Bulk Import CSV
+        <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportCsv} className="gap-2">
+              <Download className="w-4 h-4" />
+              Export CSV
             </Button>
+            {tournament.status !== 'completed' && (
+              <>
+                <input 
+                  type="file" 
+                  accept=".csv" 
+                  className="hidden" 
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                />
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-2">
+                  <Upload className="w-4 h-4" />
+                  Bulk Import CSV
+                </Button>
+                {tournament.players.length > 0 && (
+                  <Button
+                    variant="outline"
+                    disabled={tournament.status !== 'setup'}
+                    onClick={() => setDialogConfig({
+                      isOpen: true,
+                      title: 'Clear All Players',
+                      message: `Remove all ${tournament.players.length} players? This cannot be undone.`,
+                      onConfirm: clearPlayers,
+                    })}
+                    className="gap-2 text-red-500 hover:text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+                  >
+                    <X className="w-4 h-4" />
+                    Clear All
+                  </Button>
+                )}
+              </>
+            )}
           </div>
-        )}
       </div>
 
       {tournament.status !== 'completed' && (

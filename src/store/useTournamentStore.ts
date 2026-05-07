@@ -88,6 +88,7 @@ interface TournamentStore {
   bulkAddPlayers: (players: Omit<Player, 'id' | 'active' | 'requestedByes' | 'withdrawn'>[]) => void;
   updatePlayer: (id: string, player: Partial<Player>) => void;
   removePlayer: (id: string) => void;
+  clearPlayers: () => void;
   withdrawPlayer: (id: string) => void;
   rejoinPlayer: (id: string) => void;
   addTeam: (name: string) => void;
@@ -187,6 +188,12 @@ export const useTournamentStore = create<TournamentStore>()(
         set((state) => updateActive(state, t => ({
           ...t,
           players: t.players.filter(p => p.id !== id)
+        }))),
+
+      clearPlayers: () =>
+        set((state) => updateActive(state, t => ({
+          ...t,
+          players: []
         }))),
 
       withdrawPlayer: (id) =>

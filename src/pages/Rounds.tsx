@@ -192,88 +192,145 @@ export function Rounds() {
   };
 
   const printScoreSheets = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const matchesToPrint = roundMatches.filter(m => m.result !== 'bye');
-    
+    const pageH = 297;
+    const sheetH = 94; // 3 sheets fit in 297mm with small margins
+    const sheetW = 190;
+    const marginX = 10;
+
+    const getPlayerInfo = (id: string | null) => {
+      if (!id) return { name: 'BYE', rating: '' };
+      const p = tournament.players.find(pl => pl.id === id);
+      return { name: p?.name || 'Unknown', rating: p?.rating ? `(${p.rating})` : '' };
+    };
+
     matchesToPrint.forEach((match, index) => {
-      const isSecondOnPage = index % 2 === 1;
-      const yOffset = isSecondOnPage ? 145 : 0;
+      const slot = index % 3;
+      const yBase = marginX + slot * sheetH;
 
-      if (index > 0 && !isSecondOnPage) {
-        doc.addPage();
-      }
+      if (index > 0 && slot === 0) doc.addPage();
 
-      // Border for score sheet
-      doc.setDrawColor(200);
-      doc.rect(10, 10 + yOffset, 190, 130);
+      const white = getPlayerInfo(match.whiteId);
+      const black = getPlayerInfo(match.blackId);
 
-      // Header
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(tournament.name, 105, 20 + yOffset, { align: 'center' });
-      
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Round: ${selectedRound}    Board: ${match.boardNumber === 999 ? '-' : match.boardNumber}`, 105, 28 + yOffset, { align: 'center' });
-      if (tournament.timeControl) {
-        doc.text(`Time Control: ${tournament.timeControl}`, 105, 34 + yOffset, { align: 'center' });
-      }
+      // Outer border
+      doc.setDrawColor(160);
+      doc.setLineWidth(0.4);
+      doc.rect(marginX, yBase, sheetW, sheetH - 2);
 
-      // Players
-      doc.setFontSize(12);
-      doc.text('WHITE:', 20, 45 + yOffset);
-      doc.setFont('helvetica', 'bold');
-      doc.text(getPlayerName(match.whiteId), 40, 45 + yOffset);
-      
-      doc.setFont('helvetica', 'normal');
-      doc.text('BLACK:', 110, 45 + yOffset);
-      doc.setFont('helvetica', 'bold');
-      doc.text(getPlayerName(match.blackId), 130, 45 + yOffset);
-
-      // Score Grid (Simplified)
-      doc.setFont('helvetica', 'normal');
+      // ── Header band ──
+      doc.setFillColor(51, 65, 85);
+      doc.rect(marginX, yBase, sheetW, 9, 'F');
       doc.setFontSize(9);
-      doc.setDrawColor(180);
-      
-      const gridStartY = 55 + yOffset;
-      const colWidth = 45;
-      const rowHeight = 6;
-      const rows = 10;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(tournament.name, 105, yBase + 6, { align: 'center' });
 
-      for (let i = 0; i <= rows; i++) {
-        const y = gridStartY + i * rowHeight;
-        doc.line(20, y, 20 + colWidth * 4, y);
-      }
-      for (let i = 0; i <= 4; i++) {
-        const x = 20 + i * colWidth;
-        doc.line(x, gridStartY, x, gridStartY + rows * rowHeight);
-      }
+      // Round / Board / Time control
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(80);
+      const boardLabel = match.boardNumber === 999 ? '-' : String(match.boardNumber);
+      const tcText = tournament.timeControl ? `  ·  TC: ${tournament.timeControl}` : '';
+      doc.text(`Round ${selectedRound}  ·  Board ${boardLabel}${tcText}`, 105, yBase + 14, { align: 'center' });
 
-      doc.text('Move', 22, gridStartY - 2);
-      doc.text('White', 20 + colWidth + 2, gridStartY - 2);
-      doc.text('Move', 20 + colWidth * 2 + 2, gridStartY - 2);
-      doc.text('Black', 20 + colWidth * 3 + 2, gridStartY - 2);
+      // ── Player row ──
+      const playerY = yBase + 20;
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.3);
+      doc.line(marginX, playerY, marginX + sheetW, playerY);
 
-      for (let i = 1; i <= rows; i++) {
-        doc.text(`${i}.`, 22, gridStartY + i * rowHeight - 2);
-        doc.text(`${i + rows}.`, 20 + colWidth * 2 + 2, gridStartY + i * rowHeight - 2);
-      }
+      // White
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30);
+      doc.text('WHITE', marginX + 3, playerY + 5.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${white.name} ${white.rating}`.trim(), marginX + 3, playerY + 11);
 
-      // Result Section
-      doc.setFontSize(11);
-      doc.text('RESULT:  [  ] 1-0    [  ] 0-1    [  ] ½-½', 20, 125 + yOffset);
+      // divider
+      doc.line(marginX + sheetW / 2, playerY, marginX + sheetW / 2, playerY + 14);
 
-      // Signatures
-      doc.line(20, 135 + yOffset, 80, 135 + yOffset);
-      doc.text('White Signature', 20, 139 + yOffset);
-      
-      doc.line(110, 135 + yOffset, 170, 135 + yOffset);
-      doc.text('Black Signature', 110, 139 + yOffset);
-      
-      // Cut line if first on page
-      if (!isSecondOnPage && index < matchesToPrint.length - 1) {
-        doc.setLineDashPattern([2, 2], 0);
-        doc.line(0, 148, 210, 148);
+      // Black
+      doc.setFont('helvetica', 'bold');
+      doc.text('BLACK', marginX + sheetW / 2 + 3, playerY + 5.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${black.name} ${black.rating}`.trim(), marginX + sheetW / 2 + 3, playerY + 11);
+
+      doc.line(marginX, playerY + 14, marginX + sheetW, playerY + 14);
+
+      // ── Move grid ──
+      // Two side-by-side grids (moves 1-20 left, 21-40 right)
+      const gridTop = playerY + 17;
+      const colW = [8, 28, 28]; // Move# | White | Black
+      const rowH = 4.2;
+      const rows = 20;
+      const gridW = colW[0] + colW[1] + colW[2]; // 64mm per grid
+      const gap = 6; // gap between the two grids
+      const leftX = marginX + (sheetW - gridW * 2 - gap) / 2;
+      const rightX = leftX + gridW + gap;
+
+      const drawGrid = (startX: number, moveOffset: number) => {
+        // Header row
+        doc.setFillColor(230, 234, 240);
+        doc.rect(startX, gridTop, gridW, rowH, 'F');
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(60);
+        doc.text('#', startX + colW[0] / 2, gridTop + rowH - 1, { align: 'center' });
+        doc.text('White', startX + colW[0] + colW[1] / 2, gridTop + rowH - 1, { align: 'center' });
+        doc.text('Black', startX + colW[0] + colW[1] + colW[2] / 2, gridTop + rowH - 1, { align: 'center' });
+
+        // Grid lines
+        doc.setDrawColor(200);
+        doc.setLineWidth(0.2);
+        for (let r = 0; r <= rows; r++) {
+          doc.line(startX, gridTop + rowH + r * rowH, startX + gridW, gridTop + rowH + r * rowH);
+        }
+        for (let c = 0, x = startX; c <= 3; c++) {
+          doc.line(x, gridTop, x, gridTop + rowH * (rows + 1));
+          if (c < 3) x += colW[c];
+        }
+
+        // Move numbers
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(5.5);
+        doc.setTextColor(100);
+        for (let r = 1; r <= rows; r++) {
+          doc.text(`${r + moveOffset}.`, startX + colW[0] - 1, gridTop + rowH * r + rowH - 1, { align: 'right' });
+        }
+      };
+
+      drawGrid(leftX, 0);
+      drawGrid(rightX, 20);
+
+      // ── Result & signatures ──
+      const bottomY = gridTop + rowH * (rows + 1) + 4;
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30);
+      doc.text('Result:', marginX + 3, bottomY + 4);
+      doc.setFont('helvetica', 'normal');
+      doc.text('[ ] 1-0     [ ] 0-1     [ ] ½-½     [ ] Adjourned', marginX + 18, bottomY + 4);
+
+      // Signature lines
+      const sigY = bottomY + 10;
+      doc.setDrawColor(150);
+      doc.setLineWidth(0.3);
+      doc.line(marginX + 3, sigY, marginX + 85, sigY);
+      doc.line(marginX + 100, sigY, marginX + sheetW - 3, sigY);
+      doc.setFontSize(6);
+      doc.setTextColor(120);
+      doc.text('White signature', marginX + 3, sigY + 3.5);
+      doc.text('Black signature', marginX + 100, sigY + 3.5);
+
+      // Cut line between sheets (not after last on page)
+      if (slot < 2 && index < matchesToPrint.length - 1) {
+        doc.setDrawColor(180);
+        doc.setLineWidth(0.2);
+        doc.setLineDashPattern([1.5, 1.5], 0);
+        doc.line(0, yBase + sheetH - 1, 210, yBase + sheetH - 1);
         doc.setLineDashPattern([], 0);
       }
     });
@@ -343,7 +400,7 @@ export function Rounds() {
           {match.result !== 'bye' && (
             <button
               onClick={() => swapMode ? handlePlayerClick(match.id, false) : (match.blackId && setSelectedPlayerId(match.blackId))}
-              disabled={swapMode}
+              disabled={swapMode && match.result === 'bye'}
               className={`inline-flex items-center gap-2 font-medium ${
                 isBlackSelected ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 px-2 py-1 rounded' : 
                 swapMode ? 'hover:bg-slate-200 dark:hover:bg-slate-700 px-2 py-1 rounded cursor-pointer' : 'text-slate-900 dark:text-white hover:underline'
@@ -403,50 +460,14 @@ export function Rounds() {
       {isCurrentRound && tournament.status === 'active' && roundMatches.length === 0 && (
         <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 text-center">
           
-          {tournament.type === 'swiss' && !tournament.isTeamTournament && (
-            <div className="max-w-md mx-auto mb-8 text-left bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Forced Pairings (Optional)</h4>
-              <div className="space-y-2 mb-3">
-                {tournament.forcedPairings?.map((fp, idx) => {
-                  const w = tournament.players.find(p => p.id === fp.whiteId)?.name;
-                  const b = tournament.players.find(p => p.id === fp.blackId)?.name;
-                  return (
-                    <div key={idx} className="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-700 text-sm">
-                      <span className="dark:text-white"><span title="White">♔</span> {w} vs <span title="Black">♚</span> {b}</span>
-                      <button onClick={() => removeForcedPairing(idx)} className="text-red-500 hover:text-red-700"><X className="w-4 h-4"/></button>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex gap-2">
-                <select id="force-white" className="flex-1 h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs dark:text-white">
-                  <option value="">White...</option>
-                  {tournament.players.filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <select id="force-black" className="flex-1 h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs dark:text-white">
-                  <option value="">Black...</option>
-                  {tournament.players.filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <Button size="sm" variant="outline" onClick={() => {
-                  const w = document.getElementById('force-white') as HTMLSelectElement;
-                  const b = document.getElementById('force-black') as HTMLSelectElement;
-                  if (w.value && b.value && w.value !== b.value) {
-                    addForcedPairing(w.value, b.value);
-                    w.value = ''; b.value = '';
-                  }
-                }}>Add</Button>
-              </div>
-            </div>
-          )}
-
           <Button onClick={handleGenerateNextRound} size="lg">
-            Generate Round {selectedRound} Pairings
+            Auto-Generate Round {selectedRound}
           </Button>
         </div>
       )}
 
       <div className={`grid gap-6 items-start ${splitView ? 'grid-cols-1 xl:grid-cols-[1fr_minmax(400px,_1fr)]' : 'grid-cols-1'}`}>
-        <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full ${roundMatches.length === 0 ? 'hidden' : ''}`}>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full">
           <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
             <h3 className="font-semibold text-slate-900 dark:text-white">Round {selectedRound} Pairings</h3>
             <div className="flex gap-2 print:hidden items-center flex-wrap">
@@ -564,41 +585,8 @@ export function Rounds() {
               </tbody>
             </table>
           </div>
-          
-          {isCurrentRound && tournament.status === 'active' && (
-            <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 print:hidden overflow-x-auto">
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-2">Manual Pairing</h4>
-              <div className="flex gap-2 items-center min-w-[500px]">
-                <select id="manual-white" className="flex-1 h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1 text-sm dark:text-white">
-                  <option value="">Select White...</option>
-                  {tournament.players.filter(p => p.active).map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                <span className="text-slate-500">vs</span>
-                <select id="manual-black" className="flex-1 h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1 text-sm dark:text-white">
-                  <option value="">Select Black (or leave empty for BYE)...</option>
-                  {tournament.players.filter(p => p.active).map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    const whiteSelect = document.getElementById('manual-white') as HTMLSelectElement;
-                    const blackSelect = document.getElementById('manual-black') as HTMLSelectElement;
-                    if (whiteSelect.value) {
-                      useTournamentStore.getState().addManualMatch(selectedRound, whiteSelect.value, blackSelect.value || null);
-                      whiteSelect.value = '';
-                      blackSelect.value = '';
-                    }
-                  }}
-                >
-                  Add Board
-                </Button>
-              </div>
-            </div>
-          )}
+
+
         </div>
 
         {splitView && (

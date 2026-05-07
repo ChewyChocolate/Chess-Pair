@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTournamentStore, TiebreakType, TIEBREAK_LABELS } from '../store/useTournamentStore';
 import { calculateStandings, calculateTeamStandings } from '../lib/tiebreaks';
 import { getPlayerStats } from '../lib/playerStats';
@@ -6,7 +6,8 @@ import { Button } from '../components/ui/Button';
 import { Download, AlertTriangle, Users, FileText, Settings, ArrowUp, ArrowDown, X, Plus } from 'lucide-react';
 import { PlayerProfileModal } from '../components/PlayerProfileModal';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { applyPlugin } from 'jspdf-autotable';
+applyPlugin(jsPDF);
 
 interface StandingsTableProps {
   tournament: any;
@@ -91,6 +92,21 @@ export function Standings() {
   const [showTiebreakSettings, setShowTiebreakSettings] = useState(false);
   const [viewRound, setViewRound] = useState<number | null>(null);
   const [showWarnings, setShowWarnings] = useState(true);
+  const [showPdfOptions, setShowPdfOptions] = useState(false);
+  const [pdfIncludeRating, setPdfIncludeRating] = useState(true);
+  const [pdfIncludeClub, setPdfIncludeClub] = useState(true);
+  const pdfOptionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showPdfOptions) return;
+    const handler = (e: MouseEvent) => {
+      if (pdfOptionsRef.current && !pdfOptionsRef.current.contains(e.target as Node)) {
+        setShowPdfOptions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPdfOptions]);
 
   const displayedRound = viewRound !== null
     ? viewRound
@@ -182,33 +198,41 @@ export function Standings() {
     if (subTitle) doc.text(subTitle, 14, 30);
     doc.text(roundInfo, 14, subTitle ? 36 : 30);
 
-    const tableData = standings.map((p, i) => [
-      i + 1,
-      p.name,
-      p.rating || '',
-      p.club || '',
-      p.score,
-      p.buchholz,
-      p.medianBuchholz,
-      p.sonnebornBerger,
-      p.mostWins
-    ]);
+    const headers = ['Rank', 'Name'];
+    if (pdfIncludeRating) headers.push('Rating');
+    if (pdfIncludeClub) headers.push('Club');
+    headers.push('Pts', 'BH', 'MBH', 'SB', 'MW');
+
+    const tableData = standings.map((p, i) => {
+      const row: any[] = [i + 1, p.name];
+      if (pdfIncludeRating) row.push(p.rating || '');
+      if (pdfIncludeClub) row.push(p.club || '');
+      row.push(p.score, p.buchholz, p.medianBuchholz, p.sonnebornBerger, p.mostWins);
+      return row;
+    });
+
+    // Build column styles dynamically based on which optional columns are included
+    let colOffset = 2; // Rank + Name always present
+    const colStyles: Record<number, any> = {
+      0: { cellWidth: 12, halign: 'center' },
+    };
+    if (pdfIncludeRating) colOffset++;
+    if (pdfIncludeClub) colOffset++;
+    // Points column
+    colStyles[colOffset] = { fontStyle: 'bold', halign: 'center' };
+    colStyles[colOffset + 1] = { halign: 'center' };
+    colStyles[colOffset + 2] = { halign: 'center' };
+    colStyles[colOffset + 3] = { halign: 'center' };
+    colStyles[colOffset + 4] = { halign: 'center' };
 
     (doc as any).autoTable({
       startY: subTitle ? 42 : 36,
-      head: [['Rank', 'Name', 'Rating', 'Club', 'Pts', 'BH', 'MBH', 'SB', 'MW']],
+      head: [headers],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [51, 65, 85] },
       styles: { fontSize: 9 },
-      columnStyles: {
-        0: { cellWidth: 12, halign: 'center' },
-        4: { fontStyle: 'bold', halign: 'center' },
-        5: { halign: 'center' },
-        6: { halign: 'center' },
-        7: { halign: 'center' },
-        8: { halign: 'center' },
-      }
+      columnStyles: colStyles,
     });
 
     if (tournament.isTeamTournament && teamStandings.length > 0) {
@@ -283,10 +307,42 @@ export function Standings() {
             <Download className="w-4 h-4" />
             Export CSV
           </Button>
-          <Button variant="outline" onClick={exportPDF} className="gap-2">
-            <FileText className="w-4 h-4" />
-            Export PDF
-          </Button>
+          <div className="relative" ref={pdfOptionsRef}>
+            <Button variant="outline" onClick={() => setShowPdfOptions(v => !v)} className="gap-2">
+              <FileText className="w-4 h-4" />
+              Export PDF
+            </Button>
+            {showPdfOptions && (
+              <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 p-4 space-y-3">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">PDF Columns</p>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={pdfIncludeRating}
+                    onChange={e => setPdfIncludeRating(e.target.checked)}
+                    className="rounded border-slate-300 dark:border-slate-600 text-blue-600"
+                  />
+                  <span className="text-sm text-slate-700 dark:text-slate-300">Include Rating</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={pdfIncludeClub}
+                    onChange={e => setPdfIncludeClub(e.target.checked)}
+                    className="rounded border-slate-300 dark:border-slate-600 text-blue-600"
+                  />
+                  <span className="text-sm text-slate-700 dark:text-slate-300">Include Club</span>
+                </label>
+                <Button
+                  className="w-full gap-2"
+                  onClick={() => { exportPDF(); setShowPdfOptions(false); }}
+                >
+                  <FileText className="w-4 h-4" />
+                  Download PDF
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
