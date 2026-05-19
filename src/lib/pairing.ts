@@ -487,22 +487,24 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
     }
   }
 
-  // Sort pairings by standings: highest score first, then highest rating
-  const getScore = (id: string | null) => id ? (scores[id] ?? 0) : 0;
-  const getRating = (id: string | null) => tournament.players.find(p => p.id === id)?.rating ?? 0;
+  // Compute player ranks based on current standings (score desc, rating desc)
+  const rankedPlayers = [...tournament.players]
+    .filter(p => p.active && !p.withdrawn)
+    .sort((a, b) => {
+      if (scores[b.id] !== scores[a.id]) return scores[b.id] - scores[a.id];
+      return (b.rating || 0) - (a.rating || 0);
+    });
+  const playerRank: Record<string, number> = {};
+  rankedPlayers.forEach((p, i) => { playerRank[p.id] = i + 1; });
+
+  // Sort matches so the highest-ranked player is on Board 1, next on Board 2, etc.
   matches.sort((a, b) => {
     if (a.result === 'bye' && b.result !== 'bye') return 1;
     if (b.result === 'bye' && a.result !== 'bye') return -1;
     if (a.result === 'bye' && b.result === 'bye') return 0;
-    const aScore = Math.max(getScore(a.whiteId), getScore(a.blackId!));
-    const bScore = Math.max(getScore(b.whiteId), getScore(b.blackId!));
-    if (bScore !== aScore) return bScore - aScore;
-    const aMax = Math.max(getRating(a.whiteId), getRating(a.blackId!));
-    const bMax = Math.max(getRating(b.whiteId), getRating(b.blackId!));
-    if (bMax !== aMax) return bMax - aMax;
-    const aMin = Math.min(getRating(a.whiteId), getRating(a.blackId!));
-    const bMin = Math.min(getRating(b.whiteId), getRating(b.blackId!));
-    return bMin - aMin;
+    const aBest = Math.min(playerRank[a.whiteId!], playerRank[a.blackId!]);
+    const bBest = Math.min(playerRank[b.whiteId!], playerRank[b.blackId!]);
+    return aBest - bBest;
   });
   for (let i = 0; i < matches.length; i++) {
     if (matches[i].result !== 'bye') matches[i].boardNumber = i + 1;
