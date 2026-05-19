@@ -67,7 +67,7 @@ export function Home() {
           {tournaments.map(t => (
             <div key={t.id} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col">
               <div className="flex justify-between items-start mb-4">
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white truncate pr-2">{t.name}</h3>
                   {t.section && <p className="text-xs font-medium text-blue-600 dark:text-blue-400">{t.section}</p>}
                 </div>

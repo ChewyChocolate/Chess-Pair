@@ -59,65 +59,128 @@ export function Rounds() {
     return `${w} - ${b}`;
   };
 
+  const getPlayerName = (id: string | null) => {
+    if (!id) return 'BYE';
+    return tournament.players.find(p => p.id === id)?.name || 'Unknown';
+  };
+
+  const startAndGenerate = () => {
+    startTournament();
+    let matches: Match[] = [];
+    if (tournament.isTeamTournament) {
+      if (tournament.type === 'swiss') {
+        matches = generateTeamSwiss(tournament, 1);
+      } else if (tournament.type === 'round-robin') {
+        matches = generateTeamRoundRobin(tournament, 1);
+      } else if (tournament.type === 'knockout') {
+        matches = generateTeamKnockout(tournament, 1);
+      }
+    } else {
+      if (tournament.type === 'swiss') {
+        matches = generateSwiss(tournament, 1);
+      } else if (tournament.type === 'round-robin') {
+        matches = generateRoundRobin(tournament.players, 1);
+      } else if (tournament.type === 'knockout') {
+        matches = generateKnockout(tournament, 1);
+      }
+    }
+    generatePairings(1, matches);
+    setSelectedRound(1);
+  };
+
   if (!tournament) {
     return <div className="text-center text-slate-500 mt-10">Please create a tournament first.</div>;
   }
 
   if (tournament.status === 'setup') {
     return (
+      <>
       <div className="text-center mt-10 space-y-4">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Tournament Setup</h2>
         <p className="text-slate-600 dark:text-slate-400">You have {tournament.players.length} players registered.</p>
         <Button 
           size="lg" 
           onClick={() => {
-            if (tournament.isTeamTournament && tournament.teams.length < 2) {
+            const activePlayers = tournament.players.filter(p => p.active && !p.withdrawn).length;
+            const isTeam = tournament.isTeamTournament;
+            const type = tournament.type;
+
+            // Minimum player/team checks
+            if (isTeam && tournament.teams.length < 2) {
               setDialogConfig({
-                isOpen: true,
-                title: 'Cannot Start',
+                isOpen: true, title: 'Cannot Start',
                 message: 'You need at least 2 teams to start a team tournament.',
-                isAlert: true,
-                onConfirm: () => {}
+                isAlert: true, onConfirm: () => {}
               });
               return;
             }
-            if (!tournament.isTeamTournament && tournament.players.length < 2) {
+            if (!isTeam && activePlayers < 2) {
               setDialogConfig({
-                isOpen: true,
-                title: 'Cannot Start',
+                isOpen: true, title: 'Cannot Start',
                 message: 'You need at least 2 players to start.',
-                isAlert: true,
-                onConfirm: () => {}
+                isAlert: true, onConfirm: () => {}
               });
               return;
             }
-            startTournament();
-            // Generate round 1
-            let matches: Match[] = [];
-            if (tournament.isTeamTournament) {
-              if (tournament.type === 'swiss') {
-                matches = generateTeamSwiss(tournament, 1);
-              } else if (tournament.type === 'round-robin') {
-                matches = generateTeamRoundRobin(tournament, 1);
-              } else if (tournament.type === 'knockout') {
-                matches = generateTeamKnockout(tournament, 1);
-              }
-            } else {
-              if (tournament.type === 'swiss') {
-                matches = generateSwiss(tournament, 1);
-              } else if (tournament.type === 'round-robin') {
-                matches = generateRoundRobin(tournament.players, 1);
-              } else if (tournament.type === 'knockout') {
-                matches = generateKnockout(tournament, 1);
+            if (!isTeam && type === 'swiss' && activePlayers < 4) {
+              setDialogConfig({
+                isOpen: true, title: 'Cannot Start',
+                message: `Swiss needs at least 4 active players (${activePlayers} available).`,
+                isAlert: true, onConfirm: () => {}
+              });
+              return;
+            }
+            if (!isTeam && type === 'round-robin' && activePlayers < 3) {
+              setDialogConfig({
+                isOpen: true, title: 'Cannot Start',
+                message: `Round-robin needs at least 3 active players (${activePlayers} available).`,
+                isAlert: true, onConfirm: () => {}
+              });
+              return;
+            }
+
+            // Knockout power-of-2 advisory
+            if (!isTeam && type === 'knockout') {
+              const isPowerOfTwo = (activePlayers & (activePlayers - 1)) === 0;
+              if (!isPowerOfTwo) {
+                const nextPow2 = Math.pow(2, Math.ceil(Math.log2(activePlayers)));
+                setDialogConfig({
+                  isOpen: true, title: 'Knockout Advisory',
+                  message: `${activePlayers} players is not a power of 2. ${nextPow2 - activePlayers} byes will be assigned to fill the bracket. Continue?`,
+                  onConfirm: () => startAndGenerate(),
+                });
+                return;
               }
             }
-            generatePairings(1, matches);
-            setSelectedRound(1);
+
+            // Round-robin round count advisory
+            if (!isTeam && type === 'round-robin') {
+              const rounds = activePlayers % 2 === 0 ? activePlayers - 1 : activePlayers;
+              setDialogConfig({
+                isOpen: true, title: 'Start Tournament',
+                message: `Round-robin with ${activePlayers} players will run for ${rounds} rounds. Start?`,
+                onConfirm: () => startAndGenerate(),
+              });
+              return;
+            }
+
+            startAndGenerate();
           }}
         >
           Start Tournament & Generate Round 1
         </Button>
       </div>
+      {dialogConfig && (
+        <ConfirmDialog
+          isOpen={dialogConfig.isOpen}
+          title={dialogConfig.title}
+          message={dialogConfig.message}
+          isAlert={dialogConfig.isAlert}
+          onConfirm={dialogConfig.onConfirm}
+          onCancel={() => setDialogConfig(null)}
+        />
+      )}
+      </>
     );
   }
 
@@ -133,24 +196,38 @@ export function Rounds() {
       message: 'Are you sure you want to complete this round and generate the next one?',
       onConfirm: () => {
         completeRound();
-        const nextRound = tournament.currentRound + 1;
-        if (nextRound <= tournament.totalRounds) {
+        const state = useTournamentStore.getState();
+        const freshTournament = state.tournaments.find(t => t.id === activeId);
+        if (!freshTournament) return;
+
+        const activeCount = freshTournament.players.filter(p => p.active && !p.withdrawn).length;
+        if (activeCount < 2) {
+          setDialogConfig({
+            isOpen: true, title: 'Tournament Complete',
+            message: `Only ${activeCount} active player${activeCount === 1 ? '' : 's'} remain${activeCount === 0 ? '' : 's'}. The tournament cannot continue.`,
+            isAlert: true, onConfirm: () => {}
+          });
+          return;
+        }
+
+        const nextRound = freshTournament.currentRound + 1;
+        if (nextRound <= freshTournament.totalRounds) {
           let matches: Match[] = [];
-          if (tournament.isTeamTournament) {
-            if (tournament.type === 'swiss') {
-              matches = generateTeamSwiss(tournament, nextRound);
-            } else if (tournament.type === 'round-robin') {
-              matches = generateTeamRoundRobin(tournament, nextRound);
-            } else if (tournament.type === 'knockout') {
-              matches = generateTeamKnockout(tournament, nextRound);
+          if (freshTournament.isTeamTournament) {
+            if (freshTournament.type === 'swiss') {
+              matches = generateTeamSwiss(freshTournament, nextRound);
+            } else if (freshTournament.type === 'round-robin') {
+              matches = generateTeamRoundRobin(freshTournament, nextRound);
+            } else if (freshTournament.type === 'knockout') {
+              matches = generateTeamKnockout(freshTournament, nextRound);
             }
           } else {
-            if (tournament.type === 'swiss') {
-              matches = generateSwiss(tournament, nextRound);
-            } else if (tournament.type === 'round-robin') {
-              matches = generateRoundRobin(tournament.players, nextRound);
-            } else if (tournament.type === 'knockout') {
-              matches = generateKnockout(tournament, nextRound);
+            if (freshTournament.type === 'swiss') {
+              matches = generateSwiss(freshTournament, nextRound);
+            } else if (freshTournament.type === 'round-robin') {
+              matches = generateRoundRobin(freshTournament.players, nextRound);
+            } else if (freshTournament.type === 'knockout') {
+              matches = generateKnockout(freshTournament, nextRound);
             }
           }
           generatePairings(nextRound, matches);
@@ -184,11 +261,6 @@ export function Rounds() {
       setSelectedForSwap(null);
       setSwapMode(false);
     }
-  };
-
-  const getPlayerName = (id: string | null) => {
-    if (!id) return 'BYE';
-    return tournament.players.find(p => p.id === id)?.name || 'Unknown';
   };
 
   const printScoreSheets = () => {
