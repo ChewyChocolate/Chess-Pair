@@ -22,12 +22,12 @@ export function calculateScores(tournament: Tournament, upToRound?: number) {
     
     // Add requested byes score
     if (p.requestedByes && p.requestedByes.length > 0) {
-      const applicableByes = upToRound ? p.requestedByes.filter(r => r <= upToRound) : p.requestedByes;
+      const applicableByes = upToRound !== undefined ? p.requestedByes.filter(r => r <= upToRound) : p.requestedByes;
       scores[p.id] += applicableByes.length * ptsD;
     }
   });
 
-  const matchesToProcess = upToRound ? tournament.matches.filter(m => m.round <= upToRound) : tournament.matches;
+  const matchesToProcess = upToRound !== undefined ? tournament.matches.filter(m => m.round <= upToRound) : tournament.matches;
 
   // Sort matches by round to process history correctly
   const sortedMatches = [...matchesToProcess].sort((a, b) => a.round - b.round);
@@ -472,12 +472,16 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
     }
   }
 
-  // Sort pairings by player rank: highest-rated players on top boards
+  // Sort pairings by standings: highest score first, then highest rating
+  const getScore = (id: string | null) => id ? (scores[id] ?? 0) : 0;
   const getRating = (id: string | null) => tournament.players.find(p => p.id === id)?.rating ?? 0;
   matches.sort((a, b) => {
     if (a.result === 'bye' && b.result !== 'bye') return 1;
     if (b.result === 'bye' && a.result !== 'bye') return -1;
     if (a.result === 'bye' && b.result === 'bye') return 0;
+    const aScore = Math.max(getScore(a.whiteId), getScore(a.blackId!));
+    const bScore = Math.max(getScore(b.whiteId), getScore(b.blackId!));
+    if (bScore !== aScore) return bScore - aScore;
     const aMax = Math.max(getRating(a.whiteId), getRating(a.blackId!));
     const bMax = Math.max(getRating(b.whiteId), getRating(b.blackId!));
     if (bMax !== aMax) return bMax - aMax;
@@ -507,7 +511,7 @@ export function calculateTeamScores(tournament: Tournament, upToRound?: number) 
     teamColorHistory[t.id] = 0;
   });
 
-  const matchesToProcess = upToRound ? tournament.matches.filter(m => m.round <= upToRound) : tournament.matches;
+  const matchesToProcess = upToRound !== undefined ? tournament.matches.filter(m => m.round <= upToRound) : tournament.matches;
 
   // Group matches by teamMatchId
   const teamMatchesByRound: Record<number, Record<string, Match[]>> = {};

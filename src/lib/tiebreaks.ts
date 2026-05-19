@@ -38,7 +38,7 @@ export function calculateTeamStandings(tournament: Tournament, upToRound?: numbe
       // Find the team match result against this opponent
       const teamMatches = tournament.matches.filter(m => 
         m.teamMatchId && 
-        (!upToRound || m.round <= upToRound) &&
+        (!(upToRound !== undefined) || m.round <= upToRound) &&
         ((tournament.teams.find(t => t.id === team.id)?.playerIds.includes(m.whiteId!) && tournament.teams.find(t => t.id === oppId)?.playerIds.includes(m.blackId!)) ||
          (tournament.teams.find(t => t.id === team.id)?.playerIds.includes(m.blackId!) && tournament.teams.find(t => t.id === oppId)?.playerIds.includes(m.whiteId!)))
       );
@@ -83,7 +83,7 @@ export function calculateStandings(tournament: Tournament, upToRound?: number): 
     directEncounter: 0,
   }));
 
-  const matchesToProcess = upToRound ? tournament.matches.filter(m => m.round <= upToRound) : tournament.matches;
+  const matchesToProcess = upToRound !== undefined ? tournament.matches.filter(m => m.round <= upToRound) : tournament.matches;
 
   // Calculate Most Wins
   matchesToProcess.forEach(m => {
