@@ -20,7 +20,7 @@ export function Home() {
   const [avoidClub, setAvoidClub] = useState(false);
   const [autoCalcRounds, setAutoCalcRounds] = useState(true);
   const [manualOverride, setManualOverride] = useState(false);
-  const [tiebreakOrder, setTiebreakOrder] = useState<TiebreakType[]>(['direct-encounter', 'buchholz', 'median-buchholz', 'sonneborn-berger', 'most-wins', 'rating']);
+  const [tiebreakOrder, setTiebreakOrder] = useState<TiebreakType[]>(['direct-encounter', 'buchholz', 'median-buchholz', 'sonneborn-berger', 'most-wins']);
   const [dialogConfig, setDialogConfig] = useState<{ isOpen: boolean, title?: string, message: string, isAlert?: boolean, onConfirm: () => void } | null>(null);
   const navigate = useNavigate();
 

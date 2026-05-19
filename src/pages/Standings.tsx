@@ -32,8 +32,7 @@ export function StandingsTable({ tournament, standings, onPlayerClick, compact, 
                   tb === 'buchholz' ? 'BH' :
                     tb === 'median-buchholz' ? 'MBH' :
                       tb === 'sonneborn-berger' ? 'SB' :
-                        tb === 'most-wins' ? 'MW' :
-                          tb === 'rating' ? 'Rtg' : ''}
+                        tb === 'most-wins' ? 'MW' : ''}
               </th>
             ))}
           </tr>
@@ -70,8 +69,7 @@ export function StandingsTable({ tournament, standings, onPlayerClick, compact, 
                       tb === 'buchholz' ? player.buchholz :
                         tb === 'median-buchholz' ? player.medianBuchholz :
                           tb === 'sonneborn-berger' ? player.sonnebornBerger :
-                            tb === 'most-wins' ? player.mostWins :
-                              tb === 'rating' ? player.rating || '-' : '-'}
+                      tb === 'most-wins' ? player.mostWins : ''}
                   </td>
                 ))}
               </tr>

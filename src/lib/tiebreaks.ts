@@ -138,7 +138,7 @@ export function calculateStandings(tournament: Tournament, upToRound?: number): 
   standings.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     
-    const order = tournament.tiebreakOrder || ['direct-encounter', 'buchholz', 'median-buchholz', 'sonneborn-berger', 'most-wins', 'rating'];
+    const order = tournament.tiebreakOrder || ['direct-encounter', 'buchholz', 'median-buchholz', 'sonneborn-berger', 'most-wins'];
 
     for (const tb of order) {
       if (tb === 'direct-encounter') {
@@ -163,8 +163,6 @@ export function calculateStandings(tournament: Tournament, upToRound?: number): 
         if (b.sonnebornBerger !== a.sonnebornBerger) return b.sonnebornBerger - a.sonnebornBerger;
       } else if (tb === 'most-wins') {
         if (b.mostWins !== a.mostWins) return b.mostWins - a.mostWins;
-      } else if (tb === 'rating') {
-        if ((b.rating || 0) !== (a.rating || 0)) return (b.rating || 0) - (a.rating || 0);
       }
     }
     

@@ -41,15 +41,14 @@ export type ForcedPairing = {
 
 export type TournamentType = 'swiss' | 'round-robin' | 'knockout';
 
-export type TiebreakType = 'direct-encounter' | 'buchholz' | 'median-buchholz' | 'sonneborn-berger' | 'most-wins' | 'rating';
+export type TiebreakType = 'direct-encounter' | 'buchholz' | 'median-buchholz' | 'sonneborn-berger' | 'most-wins';
 
 export const TIEBREAK_LABELS: Record<TiebreakType, string> = {
   'direct-encounter': 'Direct Encounter',
   'buchholz': 'Buchholz',
   'median-buchholz': 'Median-Buchholz',
   'sonneborn-berger': 'Sonneborn-Berger',
-  'most-wins': 'Most Wins',
-  'rating': 'Rating'
+  'most-wins': 'Most Wins'
 };
 
 export type Tournament = {
@@ -125,7 +124,7 @@ export const useTournamentStore = create<TournamentStore>()(
       
       setActiveTournament: (id) => set({ activeTournamentId: id }),
       
-      createTournament: (name, type, isTeamTournament, totalRounds, timeControl, pts = {w:1, d:0.5, l:0}, avoidClub = false, autoCalcRounds = false, manualOverride = false, section, tiebreakOrder = ['direct-encounter', 'buchholz', 'median-buchholz', 'sonneborn-berger', 'most-wins', 'rating']) =>
+      createTournament: (name, type, isTeamTournament, totalRounds, timeControl, pts = {w:1, d:0.5, l:0}, avoidClub = false, autoCalcRounds = false, manualOverride = false, section, tiebreakOrder = ['direct-encounter', 'buchholz', 'median-buchholz', 'sonneborn-berger', 'most-wins']) =>
         set((state) => {
           const newTournament: Tournament = {
             id: uuidv4(),
@@ -378,7 +377,7 @@ export const useTournamentStore = create<TournamentStore>()(
               forcedPairings: t.forcedPairings || [],
               autoCalculateRounds: t.autoCalculateRounds ?? true,
               manualRoundOverride: t.manualRoundOverride ?? false,
-              tiebreakOrder: t.tiebreakOrder || ['direct-encounter', 'buchholz', 'median-buchholz', 'sonneborn-berger', 'most-wins', 'rating'],
+              tiebreakOrder: t.tiebreakOrder || ['direct-encounter', 'buchholz', 'median-buchholz', 'sonneborn-berger', 'most-wins'],
               players: t.players.map((p: any) => ({
                 ...p,
                 withdrawn: p.withdrawn ?? false
@@ -404,12 +403,20 @@ if (typeof window !== 'undefined') {
     }
     
     const results: MatchResult[] = ['1-0', '0-1', '0.5-0.5'];
+    const weights = [9, 9, 1]; // ~47% white win, ~47% black win, ~5% draw
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
     
     let updatedMatches = 0;
     
     tournament.matches.forEach(match => {
       if (match.round === tournament.currentRound && !match.result && match.blackId) {
-        const randomResult = results[Math.floor(Math.random() * results.length)];
+        let r = Math.random() * totalWeight;
+        let idx = 0;
+        for (; idx < weights.length; idx++) {
+          r -= weights[idx];
+          if (r <= 0) break;
+        }
+        const randomResult = results[idx];
         state.updateMatchResult(match.id, randomResult);
         updatedMatches++;
       }
