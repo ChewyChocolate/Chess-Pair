@@ -210,8 +210,8 @@ export function Rounds() {
           return;
         }
 
-        const nextRound = freshTournament.currentRound + 1;
-        if (nextRound <= freshTournament.totalRounds) {
+        if (freshTournament.status === 'active') {
+          const nextRound = freshTournament.currentRound;
           let matches: Match[] = [];
           if (freshTournament.isTeamTournament) {
             if (freshTournament.type === 'swiss') {

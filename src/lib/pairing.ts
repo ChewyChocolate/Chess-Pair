@@ -41,68 +41,83 @@ export function calculateScores(tournament: Tournament, upToRound?: number) {
     }
   });
 
-  sortedMatches.forEach((m) => {
+  // Group matches by round to compute floats based on pre-round scores
+  const matchesByRound: Record<number, typeof sortedMatches> = {};
+  sortedMatches.forEach(m => {
     if (m.result === null) return;
-
-    if (m.whiteId && m.blackId) {
-      played[m.whiteId].add(m.blackId);
-      played[m.blackId].add(m.whiteId);
-      
-      colorBalance[m.whiteId]++;
-      colorBalance[m.blackId]--;
-      colorSequence[m.whiteId].push('W');
-      colorSequence[m.blackId].push('B');
-
-      // Track floats: if scores were different at the time of pairing
-      // Since we don't have the exact scores at pairing time easily, 
-      // we use the scores accumulated up to the previous round.
-      if (roundScores[m.whiteId] > roundScores[m.blackId]) {
-        floatHistory[m.whiteId].push(-1); // Down-float
-        floatHistory[m.blackId].push(1);  // Up-float
-      } else if (roundScores[m.whiteId] < roundScores[m.blackId]) {
-        floatHistory[m.whiteId].push(1);  // Up-float
-        floatHistory[m.blackId].push(-1); // Down-float
-      } else {
-        floatHistory[m.whiteId].push(0);
-        floatHistory[m.blackId].push(0);
-      }
-
-      if (m.result === '1-0') {
-        scores[m.whiteId] += ptsW;
-        scores[m.blackId] += ptsL;
-        roundScores[m.whiteId] += ptsW;
-        roundScores[m.blackId] += ptsL;
-      } else if (m.result === '0-1') {
-        scores[m.blackId] += ptsW;
-        scores[m.whiteId] += ptsL;
-        roundScores[m.blackId] += ptsW;
-        roundScores[m.whiteId] += ptsL;
-      } else if (m.result === '0.5-0.5') {
-        scores[m.whiteId] += ptsD;
-        scores[m.blackId] += ptsD;
-        roundScores[m.whiteId] += ptsD;
-        roundScores[m.blackId] += ptsD;
-      } else if (m.result === 'forfeit-white') {
-        scores[m.blackId] += ptsW;
-        scores[m.whiteId] += ptsL;
-        roundScores[m.blackId] += ptsW;
-        roundScores[m.whiteId] += ptsL;
-      } else if (m.result === 'forfeit-black') {
-        scores[m.whiteId] += ptsW;
-        scores[m.blackId] += ptsL;
-        roundScores[m.whiteId] += ptsW;
-        roundScores[m.blackId] += ptsL;
-      }
-    } else if (m.whiteId && m.result === 'bye') {
-      scores[m.whiteId] += ptsW;
-      roundScores[m.whiteId] += ptsW;
-      byes.add(m.whiteId);
-    } else if (m.blackId && m.result === 'bye') {
-      scores[m.blackId] += ptsW;
-      roundScores[m.blackId] += ptsW;
-      byes.add(m.blackId);
-    }
+    if (!matchesByRound[m.round]) matchesByRound[m.round] = [];
+    matchesByRound[m.round].push(m);
   });
+
+  const roundNumbers = Object.keys(matchesByRound).map(Number).sort((a, b) => a - b);
+
+  for (const round of roundNumbers) {
+    const roundMatches = matchesByRound[round];
+
+    // Calculate floats for this round based on scores at the start of the round
+    for (const m of roundMatches) {
+      if (m.whiteId && m.blackId) {
+        if (roundScores[m.whiteId] > roundScores[m.blackId]) {
+          floatHistory[m.whiteId].push(-1); // Down-float
+          floatHistory[m.blackId].push(1);  // Up-float
+        } else if (roundScores[m.whiteId] < roundScores[m.blackId]) {
+          floatHistory[m.whiteId].push(1);  // Up-float
+          floatHistory[m.blackId].push(-1); // Down-float
+        } else {
+          floatHistory[m.whiteId].push(0);
+          floatHistory[m.blackId].push(0);
+        }
+      }
+    }
+
+    // Apply all results from this round
+    for (const m of roundMatches) {
+      if (m.whiteId && m.blackId) {
+        played[m.whiteId].add(m.blackId);
+        played[m.blackId].add(m.whiteId);
+
+        colorBalance[m.whiteId]++;
+        colorBalance[m.blackId]--;
+        colorSequence[m.whiteId].push('W');
+        colorSequence[m.blackId].push('B');
+
+        if (m.result === '1-0') {
+          scores[m.whiteId] += ptsW;
+          scores[m.blackId] += ptsL;
+          roundScores[m.whiteId] += ptsW;
+          roundScores[m.blackId] += ptsL;
+        } else if (m.result === '0-1') {
+          scores[m.blackId] += ptsW;
+          scores[m.whiteId] += ptsL;
+          roundScores[m.blackId] += ptsW;
+          roundScores[m.whiteId] += ptsL;
+        } else if (m.result === '0.5-0.5') {
+          scores[m.whiteId] += ptsD;
+          scores[m.blackId] += ptsD;
+          roundScores[m.whiteId] += ptsD;
+          roundScores[m.blackId] += ptsD;
+        } else if (m.result === 'forfeit-white') {
+          scores[m.blackId] += ptsW;
+          scores[m.whiteId] += ptsL;
+          roundScores[m.blackId] += ptsW;
+          roundScores[m.whiteId] += ptsL;
+        } else if (m.result === 'forfeit-black') {
+          scores[m.whiteId] += ptsW;
+          scores[m.blackId] += ptsL;
+          roundScores[m.whiteId] += ptsW;
+          roundScores[m.blackId] += ptsL;
+        }
+      } else if (m.whiteId && m.result === 'bye') {
+        scores[m.whiteId] += ptsW;
+        roundScores[m.whiteId] += ptsW;
+        byes.add(m.whiteId);
+      } else if (m.blackId && m.result === 'bye') {
+        scores[m.blackId] += ptsW;
+        roundScores[m.blackId] += ptsW;
+        byes.add(m.blackId);
+      }
+    }
+  }
 
   // Apply penalties at the end
   tournament.players.forEach(p => {
