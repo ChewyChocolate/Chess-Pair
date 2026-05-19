@@ -93,6 +93,7 @@ export function PlayerProfileModal({ playerId, onClose }: PlayerProfileModalProp
               <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-2 w-12 text-center">Rd</th>
+                  <th className="px-4 py-2 w-12 text-center">Board</th>
                   <th className="px-4 py-2 w-16 text-center">Color</th>
                   <th className="px-4 py-2">Opponent</th>
                   <th className="px-4 py-2 w-16 text-center">Res</th>
@@ -101,12 +102,13 @@ export function PlayerProfileModal({ playerId, onClose }: PlayerProfileModalProp
               <tbody className="divide-y divide-slate-200">
                 {stats.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-slate-500">No games played yet.</td>
+                    <td colSpan={5} className="px-4 py-6 text-center text-slate-500">No games played yet.</td>
                   </tr>
                 ) : (
                   stats.map((s, i) => (
                     <tr key={i} className="hover:bg-slate-50">
                       <td className="px-4 py-2 text-center text-slate-500">{s.round}</td>
+                      <td className="px-4 py-2 text-center text-slate-500">{s.board === 999 ? '-' : s.board}</td>
                       <td className="px-4 py-2 text-center font-medium">
                         {s.color === 'W' ? '♔' : s.color === 'B' ? '♚' : '-'}
                       </td>

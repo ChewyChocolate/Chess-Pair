@@ -2,6 +2,7 @@ import { Tournament } from '../store/useTournamentStore';
 
 export type PlayerMatchStat = {
   round: number;
+  board: number;
   opponentId: string | null;
   opponentName: string;
   color: 'W' | 'B' | null;
@@ -36,7 +37,7 @@ export function getPlayerStats(tournament: Tournament, playerId: string) {
     else if (m.result === 'forfeit-white') result = isWhite ? '0' : '1';
     else if (m.result === 'forfeit-black') result = isWhite ? '1' : '0';
 
-    stats.push({ round: m.round, opponentId, opponentName, color, result });
+    stats.push({ round: m.round, board: m.boardNumber ?? 0, opponentId, opponentName, color, result });
 
     if (color) {
       colorDiff += color === 'W' ? 1 : -1;
