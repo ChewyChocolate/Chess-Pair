@@ -472,6 +472,24 @@ export function generateSwiss(tournament: Tournament, round: number): Match[] {
     }
   }
 
+  // Sort pairings by player rank: highest-rated players on top boards
+  const getRating = (id: string | null) => tournament.players.find(p => p.id === id)?.rating ?? 0;
+  matches.sort((a, b) => {
+    if (a.result === 'bye' && b.result !== 'bye') return 1;
+    if (b.result === 'bye' && a.result !== 'bye') return -1;
+    if (a.result === 'bye' && b.result === 'bye') return 0;
+    const aMax = Math.max(getRating(a.whiteId), getRating(a.blackId!));
+    const bMax = Math.max(getRating(b.whiteId), getRating(b.blackId!));
+    if (bMax !== aMax) return bMax - aMax;
+    const aMin = Math.min(getRating(a.whiteId), getRating(a.blackId!));
+    const bMin = Math.min(getRating(b.whiteId), getRating(b.blackId!));
+    return bMin - aMin;
+  });
+  for (let i = 0; i < matches.length; i++) {
+    if (matches[i].result !== 'bye') matches[i].boardNumber = i + 1;
+    else matches[i].boardNumber = 999;
+  }
+
   return matches;
 }
 
