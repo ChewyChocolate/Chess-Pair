@@ -309,19 +309,41 @@ export const useTournamentStore = create<TournamentStore>()(
           const m1Index = matches.findIndex(m => m.id === matchId1);
           const m2Index = matches.findIndex(m => m.id === matchId2);
           if (m1Index < 0 || m2Index < 0) return t;
-          
+
           const m1 = { ...matches[m1Index] };
           const m2 = { ...matches[m2Index] };
-          
+
+          // Defensive validations
+          if (m1.round !== m2.round) return t;
+          if (m1.result !== null || m2.result !== null) return t;
+          if (m1.result === 'bye' || m2.result === 'bye') return t;
+
           const p1Id = isWhite1 ? m1.whiteId : m1.blackId;
           const p2Id = isWhite2 ? m2.whiteId : m2.blackId;
-          
+          if (!p1Id || !p2Id) return t;
+
+          const targetId1 = isWhite1 ? p2Id : m1.whiteId;
+          const targetId2 = isWhite2 ? p1Id : m2.whiteId;
+
+          // Prevent duplicate players in the same round after swap
+          const roundMatches = matches.filter(m => m.round === m1.round && m.id !== m1.id && m.id !== m2.id);
+          const idsInRound = new Set<string>();
+          for (const m of roundMatches) {
+            if (m.whiteId) idsInRound.add(m.whiteId);
+            if (m.blackId) idsInRound.add(m.blackId);
+          }
+          if (targetId1 && idsInRound.has(targetId1)) return t;
+          if (targetId2 && idsInRound.has(targetId2)) return t;
+
           if (isWhite1) m1.whiteId = p2Id; else m1.blackId = p2Id;
           if (isWhite2) m2.whiteId = p1Id; else m2.blackId = p1Id;
-          
+
+          m1.isManual = true;
+          m2.isManual = true;
+
           matches[m1Index] = m1;
           matches[m2Index] = m2;
-          
+
           return { ...t, matches };
         })),
 

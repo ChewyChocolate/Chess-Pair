@@ -52,22 +52,7 @@ export function Rounds() {
 
   const roundMatches = tournament?.matches.filter(m => m.round === selectedRound).sort((a, b) => (a.boardNumber || 0) - (b.boardNumber || 0)) || [];
 
-  // Re-sort for display using current standings (reflects any tiebreak changes)
-  const displayRoundMatches = useMemo(() => {
-    if (!tournament || roundMatches.length === 0) return roundMatches;
-    const standings = calculateStandings(tournament, selectedRound);
-    const playerRank: Record<string, number> = {};
-    standings.forEach((s, i) => { playerRank[s.id] = i + 1; });
-
-    return [...roundMatches].sort((a, b) => {
-      if (a.result === 'bye' && b.result !== 'bye') return 1;
-      if (b.result === 'bye' && a.result !== 'bye') return -1;
-      if (a.result === 'bye' && b.result === 'bye') return 0;
-      const aBest = Math.min(playerRank[a.whiteId!] || 999, playerRank[a.blackId!] || 999);
-      const bBest = Math.min(playerRank[b.whiteId!] || 999, playerRank[b.blackId!] || 999);
-      return aBest - bBest;
-    });
-  }, [tournament, selectedRound, roundMatches]);
+  const displayRoundMatches = roundMatches;
 
   const getTeamMatchScore = (matches: Match[]) => {
     let w = 0;
@@ -111,6 +96,12 @@ export function Rounds() {
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging]);
+
+  // Clear swap state when navigating between rounds
+  useEffect(() => {
+    setSwapMode(false);
+    setSelectedForSwap(null);
+  }, [selectedRound]);
 
   const startAndGenerate = () => {
     startTournament();
@@ -301,13 +292,24 @@ export function Rounds() {
 
   const handlePlayerClick = (matchId: string, isWhite: boolean) => {
     if (!swapMode || !isCurrentRound || tournament.status === 'completed') return;
-    
+
+    const clickedMatch = roundMatches.find(m => m.id === matchId);
+    if (!clickedMatch || clickedMatch.result === 'bye' || clickedMatch.result !== null) return;
+
     if (!selectedForSwap) {
       setSelectedForSwap({ matchId, isWhite });
     } else {
-      if (selectedForSwap.matchId !== matchId || selectedForSwap.isWhite !== isWhite) {
-        swapPlayers(selectedForSwap.matchId, selectedForSwap.isWhite, matchId, isWhite);
+      // Deselect if clicking the same player again
+      if (selectedForSwap.matchId === matchId && selectedForSwap.isWhite === isWhite) {
+        setSelectedForSwap(null);
+        return;
       }
+      const prevMatch = roundMatches.find(m => m.id === selectedForSwap.matchId);
+      if (!prevMatch || prevMatch.result !== null) {
+        setSelectedForSwap(null);
+        return;
+      }
+      swapPlayers(selectedForSwap.matchId, selectedForSwap.isWhite, matchId, isWhite);
       setSelectedForSwap(null);
       setSwapMode(false);
     }
@@ -522,9 +524,8 @@ export function Rounds() {
           {match.result !== 'bye' && (
             <button
               onClick={() => swapMode ? handlePlayerClick(match.id, false) : (match.blackId && setSelectedPlayerId(match.blackId))}
-              disabled={swapMode}
               className={`inline-flex items-center gap-2 font-medium ${
-                isBlackSelected ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 px-2 py-1 rounded' : 
+                isBlackSelected ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 px-2 py-1 rounded' :
                 swapMode ? 'hover:bg-slate-200 dark:hover:bg-slate-700 px-2 py-1 rounded cursor-pointer' : 'text-slate-900 dark:text-white hover:underline'
               }`}
             >
@@ -585,14 +586,14 @@ export function Rounds() {
           <div className="p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Round {selectedRound} Pairings</h3>
             <div className="flex gap-1 print:hidden items-center flex-wrap">
-              {isCurrentRound && tournament.status === 'active' && (
-                <Button 
-                  variant={swapMode ? 'default' : 'outline'} 
+              {isCurrentRound && tournament.status === 'active' && roundMatches.length > 0 && !tournament.isTeamTournament && (
+                <Button
+                  variant={swapMode ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => {
                     setSwapMode(!swapMode);
                     setSelectedForSwap(null);
-                  }} 
+                  }}
                   className="gap-1"
                 >
                   <ArrowLeftRight className="w-3.5 h-3.5" />
