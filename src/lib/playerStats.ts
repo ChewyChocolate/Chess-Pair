@@ -1,8 +1,10 @@
 import { Tournament } from '../store/useTournamentStore';
+import { calculateStandings } from './tiebreaks';
 
 export type PlayerMatchStat = {
   round: number;
   board: number;
+  standing: number;
   opponentId: string | null;
   opponentName: string;
   color: 'W' | 'B' | null;
@@ -37,7 +39,7 @@ export function getPlayerStats(tournament: Tournament, playerId: string) {
     else if (m.result === 'forfeit-white') result = isWhite ? '0' : '1';
     else if (m.result === 'forfeit-black') result = isWhite ? '1' : '0';
 
-    stats.push({ round: m.round, board: m.boardNumber ?? 0, opponentId, opponentName, color, result });
+    stats.push({ round: m.round, board: m.boardNumber ?? 0, standing: 0, opponentId, opponentName, color, result });
 
     if (color) {
       colorDiff += color === 'W' ? 1 : -1;
@@ -53,6 +55,13 @@ export function getPlayerStats(tournament: Tournament, playerId: string) {
     if (m.result === 'bye' && !requestedByeRounds.has(m.round)) {
       byeCount++;
     }
+  }
+
+  // Fill in standing ranks after each round
+  for (const s of stats) {
+    const standings = calculateStandings(tournament, s.round);
+    const rank = standings.findIndex(p => p.id === playerId) + 1;
+    s.standing = rank || stats.length;
   }
 
   // Color warning: 3 or more consecutive same color
