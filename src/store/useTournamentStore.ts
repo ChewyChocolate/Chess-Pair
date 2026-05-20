@@ -12,6 +12,7 @@ export type Player = {
   withdrawn: boolean;
   requestedByes: number[];
   penaltyPoints?: number;
+  pairingNumber?: number;
 };
 
 export type Team = {
@@ -86,6 +87,7 @@ interface TournamentStore {
   addPlayer: (player: Omit<Player, 'id' | 'active' | 'requestedByes' | 'withdrawn'>) => void;
   bulkAddPlayers: (players: Omit<Player, 'id' | 'active' | 'requestedByes' | 'withdrawn'>[]) => void;
   updatePlayer: (id: string, player: Partial<Player>) => void;
+  updatePlayerPairingNumber: (id: string, pairingNumber: number) => void;
   removePlayer: (id: string) => void;
   clearPlayers: () => void;
   withdrawPlayer: (id: string) => void;
@@ -183,6 +185,12 @@ export const useTournamentStore = create<TournamentStore>()(
           players: t.players.map(p => p.id === id ? { ...p, ...updatedPlayer } : p)
         }))),
 
+      updatePlayerPairingNumber: (id, pairingNumber) =>
+        set((state) => updateActive(state, t => ({
+          ...t,
+          players: t.players.map(p => p.id === id ? { ...p, pairingNumber } : p)
+        }))),
+
       removePlayer: (id) =>
         set((state) => updateActive(state, t => ({
           ...t,
@@ -234,11 +242,23 @@ export const useTournamentStore = create<TournamentStore>()(
               totalRounds = Math.max(1, Math.ceil(Math.log2(count)) + 1);
             }
           }
+
+          // Auto-assign pairing numbers: rated players by rating desc, then unrated randomly
+          const activePlayers = t.players.filter(p => p.active);
+          const rated = activePlayers.filter(p => p.rating).sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          const unrated = activePlayers.filter(p => !p.rating).sort(() => Math.random() - 0.5);
+          const ordered = [...rated, ...unrated];
+          const playersWithPN = t.players.map(p => {
+            const idx = ordered.findIndex(op => op.id === p.id);
+            return idx >= 0 ? { ...p, pairingNumber: idx + 1 } : p;
+          });
+
           return {
             ...t,
             status: 'active',
             currentRound: 1,
-            totalRounds
+            totalRounds,
+            players: playersWithPN
           };
         })),
 
@@ -370,6 +390,19 @@ export const useTournamentStore = create<TournamentStore>()(
         if (persistedState.tournaments) {
           persistedState.tournaments = persistedState.tournaments.map((t: any) => {
             const isTeam = t.type === 'team' || t.isTeamTournament === true;
+            
+            // Auto-assign pairing numbers if missing
+            let players = t.players || [];
+            if (players.length > 0 && !players.some((p: any) => p.pairingNumber)) {
+              const rated = players.filter((p: any) => p.rating).sort((a: any, b: any) => (b.rating || 0) - (a.rating || 0));
+              const unrated = players.filter((p: any) => !p.rating);
+              const ordered = [...rated, ...unrated];
+              players = players.map((p: any) => {
+                const idx = ordered.findIndex((op: any) => op.id === p.id);
+                return idx >= 0 ? { ...p, pairingNumber: idx + 1 } : p;
+              });
+            }
+            
             return {
               ...t,
               type: t.type === 'team' ? 'swiss' : t.type,
@@ -378,9 +411,10 @@ export const useTournamentStore = create<TournamentStore>()(
               autoCalculateRounds: t.autoCalculateRounds ?? true,
               manualRoundOverride: t.manualRoundOverride ?? false,
               tiebreakOrder: t.tiebreakOrder || ['direct-encounter', 'buchholz', 'median-buchholz', 'sonneborn-berger', 'most-wins'],
-              players: t.players.map((p: any) => ({
+              players: players.map((p: any) => ({
                 ...p,
-                withdrawn: p.withdrawn ?? false
+                withdrawn: p.withdrawn ?? false,
+                pairingNumber: p.pairingNumber ?? undefined
               }))
             };
           });

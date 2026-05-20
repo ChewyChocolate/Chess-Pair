@@ -188,7 +188,24 @@ export function checkColorSequence(seq: ('W' | 'B')[], newColor: 'W' | 'B') {
   return !(last2[0] === newColor && last2[1] === newColor);
 }
 
+import { dutchPairing } from './dutch';
+
 export function generateSwiss(tournament: Tournament, round: number): Match[] {
+  // Try FIDE Dutch System first
+  try {
+    const dutchResult = dutchPairing(tournament, round);
+    if (dutchResult !== null && dutchResult.length > 0) {
+      return dutchResult;
+    }
+  } catch (e) {
+    console.warn('Dutch pairing failed, falling back to heuristic:', e);
+  }
+
+  // Fallback to heuristic
+  return generateSwissHeuristic(tournament, round);
+}
+
+function generateSwissHeuristic(tournament: Tournament, round: number): Match[] {
   const { scores, played, colorBalance, colorSequence, floatHistory, byes } = calculateScores(tournament);
   
   const matches: Match[] = [];

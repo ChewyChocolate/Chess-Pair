@@ -10,7 +10,7 @@ export function Players() {
   const tournaments = useTournamentStore(s => s.tournaments);
   const activeId = useTournamentStore(s => s.activeTournamentId);
   const tournament = tournaments?.find(t => t.id === activeId);
-  const { addPlayer, bulkAddPlayers, removePlayer, clearPlayers, updatePlayer, withdrawPlayer, rejoinPlayer } = useTournamentStore();
+  const { addPlayer, bulkAddPlayers, removePlayer, clearPlayers, updatePlayer, updatePlayerPairingNumber, withdrawPlayer, rejoinPlayer } = useTournamentStore();
   const [name, setName] = useState('');
   const [rating, setRating] = useState('');
   const [title, setTitle] = useState('');
@@ -220,6 +220,7 @@ export function Players() {
           <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 font-medium border-b border-slate-200 dark:border-slate-700">
             <tr>
               <th className="px-6 py-3">#</th>
+              <th className="px-6 py-3">Pairing #</th>
               <th className="px-6 py-3">Name</th>
               <th className="px-6 py-3">Rating</th>
               <th className="px-6 py-3">Status</th>
@@ -230,12 +231,31 @@ export function Players() {
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {tournament.players.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">No players added yet.</td>
+                <td colSpan={7} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">No players added yet.</td>
               </tr>
             ) : (
               tournament.players.map((player, index) => (
                 <tr key={player.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 ${(!player.active || player.withdrawn) ? 'opacity-50' : ''}`}>
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{index + 1}</td>
+                  <td className="px-6 py-4">
+                    {tournament.status === 'setup' ? (
+                      <input
+                        type="number"
+                        min={1}
+                        max={tournament.players.length}
+                        value={player.pairingNumber || ''}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (!isNaN(val) && val >= 1 && val <= tournament.players.length) {
+                            updatePlayerPairingNumber(player.id, val);
+                          }
+                        }}
+                        className="w-16 h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-sm text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 dark:text-white"
+                      />
+                    ) : (
+                      <span className="text-slate-500 dark:text-slate-400">{player.pairingNumber || '-'}</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                     {player.title && <span className="text-slate-500 mr-1">{player.title}</span>}
                     {player.name}
