@@ -55,10 +55,14 @@ export function StandingsTable({ tournament, standings, onPlayerClick, compact, 
                       {player.name}
                     </button>
                     {showWarnings && hasColorWarning && (
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" title={`Color warning: ${stats.consecutiveColors} ${stats.lastColor} in a row`} />
+                      <span title={`Color warning: ${stats.consecutiveColors} ${stats.lastColor} in a row`}>
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                      </span>
                     )}
                     {showWarnings && hasByeWarning && (
-                      <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" title={`Bye warning: received ${stats.byeCount} byes`} />
+                      <span title={`Bye warning: received ${stats.byeCount} byes`}>
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                      </span>
                     )}
                   </div>
                 </td>

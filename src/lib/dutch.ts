@@ -1,6 +1,6 @@
 import { Match, Player, Tournament } from '../store/useTournamentStore';
 import { v4 as uuidv4 } from 'uuid';
-import { calculateScores } from './pairing';
+import { calculateScores } from './scores';
 import { calculateStandings } from './tiebreaks';
 
 export type DutchConstraints = {

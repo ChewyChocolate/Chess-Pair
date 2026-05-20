@@ -61,6 +61,31 @@ export function Players() {
     }
   };
 
+  function parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -72,14 +97,14 @@ export function Players() {
 
       const lines = text.split('\n');
       const playersToBulkAdd: any[] = [];
-      
+
       const startIndex = lines[0].toLowerCase().includes('name') ? 1 : 0;
 
       for (let i = startIndex; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
-        const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, ''));
+        const parts = parseCsvLine(line).map(p => p.replace(/^"|"$/g, ''));
         if (parts.length > 0 && parts[0]) {
           playersToBulkAdd.push({
             name: parts[0],
@@ -89,7 +114,7 @@ export function Players() {
           });
         }
       }
-      
+
       bulkAddPlayers(playersToBulkAdd);
       setDialogConfig({
         isOpen: true,

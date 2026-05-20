@@ -61,7 +61,7 @@ export function Rounds() {
 
   const getPlayerName = (id: string | null) => {
     if (!id) return 'BYE';
-    return tournament.players.find(p => p.id === id)?.name || 'Unknown';
+    return tournament?.players.find(p => p.id === id)?.name || 'Unknown';
   };
 
   const startAndGenerate = () => {
@@ -493,7 +493,7 @@ export function Rounds() {
           {match.result !== 'bye' && (
             <button
               onClick={() => swapMode ? handlePlayerClick(match.id, false) : (match.blackId && setSelectedPlayerId(match.blackId))}
-              disabled={swapMode && match.result === 'bye'}
+              disabled={swapMode}
               className={`inline-flex items-center gap-2 font-medium ${
                 isBlackSelected ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 px-2 py-1 rounded' : 
                 swapMode ? 'hover:bg-slate-200 dark:hover:bg-slate-700 px-2 py-1 rounded cursor-pointer' : 'text-slate-900 dark:text-white hover:underline'

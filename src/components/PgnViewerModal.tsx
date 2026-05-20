@@ -116,7 +116,7 @@ export function PgnViewerModal({ matchId, onClose }: PgnViewerModalProps) {
             <>
               <div className="flex-shrink-0 w-full lg:w-[400px]">
                 <div className="bg-slate-100 dark:bg-slate-900 rounded-lg p-2 aspect-square">
-                  <Chessboard position={position} boardWidth={384} arePiecesDraggable={false} />
+                  <Chessboard options={{ position, allowDragging: false }} />
                 </div>
                 
                 {/* Controls */}

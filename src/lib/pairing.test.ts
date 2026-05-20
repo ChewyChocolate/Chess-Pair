@@ -61,7 +61,7 @@ describe('FIDE C.1 — No rematches', () => {
       const matches = generateSwiss(t, r);
       for (const m of matches) {
         if (!m.whiteId || !m.blackId) continue;
-        expect(faced[m.whiteId].has(m.blackId)).withContext(`Round ${r}: ${m.whiteId} vs ${m.blackId} rematch`).toBe(false);
+        expect(faced[m.whiteId].has(m.blackId), `Round ${r}: ${m.whiteId} vs ${m.blackId} rematch`).toBe(false);
         faced[m.whiteId].add(m.blackId);
         faced[m.blackId].add(m.whiteId);
       }
@@ -115,7 +115,7 @@ describe('FIDE C.3 — Score group pairing', () => {
       const s1 = scores.scores[m.whiteId];
       const s2 = scores.scores[m.blackId];
       // Players with same score should be paired (within 0.5 tolerance for draws)
-      expect(Math.abs(s1 - s2)).withContext(`${m.whiteId}(${s1}) vs ${m.blackId}(${s2})`).toBeLessThanOrEqual(1);
+      expect(Math.abs(s1 - s2), `${m.whiteId}(${s1}) vs ${m.blackId}(${s2})`).toBeLessThanOrEqual(1);
     }
   });
 
@@ -155,8 +155,7 @@ describe('FIDE C.4 — Color balance', () => {
       t = { ...t, matches: [...t.matches, ...matches.map((m, i) => m.result === 'bye' ? m : { ...m, result: results[i % 3] })], currentRound: r };
       const { colorBalance } = calculateScores(t);
       for (const pid of Object.keys(colorBalance)) {
-        expect(Math.abs(colorBalance[pid]))
-          .withContext(`Round ${r}: ${pid} color balance = ${colorBalance[pid]}`)
+        expect(Math.abs(colorBalance[pid]), `Round ${r}: ${pid} color balance = ${colorBalance[pid]}`)
           .toBeLessThanOrEqual(2);
       }
     }
@@ -189,7 +188,7 @@ describe('FIDE C.5 — No three same colors in a row', () => {
         for (let i = 2; i < seq.length; i++) {
           const three = seq.slice(i - 2, i + 1);
           const allSame = three.every(c => c === three[0]);
-          expect(allSame).withContext(`${pid}: ${three.join('')} has 3 same`).toBe(false);
+          expect(allSame, `${pid}: ${three.join('')} has 3 same`).toBe(false);
         }
       }
     }
@@ -255,11 +254,11 @@ describe('Pairing integrity', () => {
       for (const m of matches) {
         for (const pid of [m.whiteId, m.blackId]) {
           if (!pid) continue;
-          expect(seen.has(pid)).withContext(`Round ${r}: duplicate ${pid}`).toBe(false);
+          expect(seen.has(pid), `Round ${r}: duplicate ${pid}`).toBe(false);
           seen.add(pid);
         }
       }
-      expect(seen.size).withContext(`Round ${r}: expected 15, got ${seen.size}`).toBe(15);
+      expect(seen.size, `Round ${r}: expected 15, got ${seen.size}`).toBe(15);
       t = { ...t, matches: [...t.matches, ...matches.map((m, i) => m.result === 'bye' ? m : { ...m, result: results[i % 3] })], currentRound: r };
     }
   });
@@ -273,10 +272,10 @@ describe('Pairing integrity', () => {
       const matches = generateSwiss(t, r);
       const seen = new Set<string>();
       for (const m of matches) {
-        if (m.whiteId) { expect(seen.has(m.whiteId)).withContext(`R${r}: dup white ${m.whiteId}`).toBe(false); seen.add(m.whiteId); }
-        if (m.blackId) { expect(seen.has(m.blackId)).withContext(`R${r}: dup black ${m.blackId}`).toBe(false); seen.add(m.blackId); }
+        if (m.whiteId) { expect(seen.has(m.whiteId), `R${r}: dup white ${m.whiteId}`).toBe(false); seen.add(m.whiteId); }
+        if (m.blackId) { expect(seen.has(m.blackId), `R${r}: dup black ${m.blackId}`).toBe(false); seen.add(m.blackId); }
       }
-      expect(seen.size).withContext(`Round ${r}`).toBe(30);
+      expect(seen.size, `Round ${r}`).toBe(30);
       t = { ...t, matches: [...t.matches, ...matches.map((m, i) => m.result === 'bye' ? m : { ...m, result: results[i % 3] })], currentRound: r };
     }
   });

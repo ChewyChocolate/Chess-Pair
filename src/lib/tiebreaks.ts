@@ -1,5 +1,5 @@
 import { Tournament, Player, Team } from '../store/useTournamentStore';
-import { calculateScores, calculateTeamScores } from './pairing';
+import { calculateScores, calculateTeamScores } from './scores';
 
 export type PlayerStanding = Player & {
   score: number;
