@@ -511,6 +511,18 @@ function generateSwissHeuristic(tournament: Tournament, round: number): Match[] 
           }
         }
 
+        // Safety check: neither player gets 3 in a row
+        const p2Color: 'W' | 'B' = p1Color === 'W' ? 'B' : 'W';
+        if (!checkColorSequence(colorSequence[p1.id], p1Color) || !checkColorSequence(colorSequence[p2.id], p2Color)) {
+          // Try reversed
+          const reversedP1: 'W' | 'B' = p1Color === 'W' ? 'B' : 'W';
+          const reversedP2: 'W' | 'B' = reversedP1 === 'W' ? 'B' : 'W';
+          if (checkColorSequence(colorSequence[p1.id], reversedP1) && checkColorSequence(colorSequence[p2.id], reversedP2)) {
+            p1Color = reversedP1;
+          }
+          // If reversed also fails, we proceed anyway (heuristic fallback)
+        }
+
         let whiteId = p1Color === 'W' ? p1.id : p2.id;
         let blackId = p1Color === 'W' ? p2.id : p1.id;        
         matches.push({

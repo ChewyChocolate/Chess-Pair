@@ -95,13 +95,11 @@ export function canPairDutch(
 
   // Try both color assignments and pick the valid one
   const tryAssignment = (w: Player, b: Player): boolean => {
-    // Check color sequence (no 3 in a row)
-    if (!relaxColors) {
-      if (wouldMakeThreeInARow(colorSequence[w.id], 'W')) return false;
-      if (wouldMakeThreeInARow(colorSequence[b.id], 'B')) return false;
-    }
+    // FIDE C.5: No 3 consecutive same colors — this is NEVER relaxed
+    if (wouldMakeThreeInARow(colorSequence[w.id], 'W')) return false;
+    if (wouldMakeThreeInARow(colorSequence[b.id], 'B')) return false;
 
-    // Check color balance (<= 2 absolute)
+    // FIDE C.4: Color balance (<= 2 absolute) — may be relaxed in last resort
     if (!relaxColors) {
       const newBalW = colorBalance[w.id] + 1;
       const newBalB = colorBalance[b.id] - 1;
