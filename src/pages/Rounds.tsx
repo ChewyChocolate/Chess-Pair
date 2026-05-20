@@ -10,8 +10,6 @@ import { StandingsTable } from './Standings';
 import { calculateStandings } from '../lib/tiebreaks';
 
 import { PlayerProfileModal } from '../components/PlayerProfileModal';
-import { PgnViewerModal } from '../components/PgnViewerModal';
-import { Presentation } from 'lucide-react';
 
 export function Rounds() {
   const tournaments = useTournamentStore(s => s.tournaments);
@@ -35,7 +33,6 @@ export function Rounds() {
   const [splitView, setSplitView] = useState(false);
   const [showWarnings, setShowWarnings] = useState(true);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const [pgnMatchId, setPgnMatchId] = useState<string | null>(null);
 
   // Added logic to calculate localized standings
   const activeStandings = useMemo(() => {
@@ -511,17 +508,6 @@ export function Rounds() {
             </button>
           )}
         </td>
-        <td className="px-4 py-4 text-center print:hidden">
-            {match.result !== 'bye' && (
-              <button 
-                onClick={() => setPgnMatchId(match.id)}
-                className={`p-1.5 rounded-md transition-colors ${match.pgn ? 'text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/50 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-300'}`}
-                title={match.pgn ? 'View PGN' : 'Add PGN'}
-              >
-                <Presentation className="w-4 h-4" />
-              </button>
-            )}
-        </td>
       </tr>
     );
   };
@@ -717,13 +703,6 @@ export function Rounds() {
         <PlayerProfileModal 
           playerId={selectedPlayerId} 
           onClose={() => setSelectedPlayerId(null)} 
-        />
-      )}
-
-      {pgnMatchId && (
-        <PgnViewerModal
-          matchId={pgnMatchId}
-          onClose={() => setPgnMatchId(null)}
         />
       )}
       

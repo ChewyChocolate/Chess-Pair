@@ -166,6 +166,7 @@ export function calculateStandings(tournament: Tournament, upToRound?: number): 
       }
     }
     
+    if (b.rating !== a.rating) return (b.rating || 0) - (a.rating || 0);
     return a.name.localeCompare(b.name);
   });
 
