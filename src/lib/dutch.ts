@@ -457,14 +457,11 @@ function pairBracketEven(
 export function dutchPairing(tournament: Tournament, round: number): Match[] | null {
   const { scores, played, colorBalance, colorSequence, floatHistory, byes } = calculateScores(tournament);
 
-  // Ensure all active players have pairing numbers (derive from rating if missing)
-  const needsPN = tournament.players.filter(p => p.active && !p.withdrawn && !p.pairingNumber);
-  if (needsPN.length > 0) {
-    const rated = needsPN.filter(p => p.rating).sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    const unrated = needsPN.filter(p => !p.rating);
-    const maxExistingPN = Math.max(0, ...tournament.players.map(p => p.pairingNumber || 0));
-    rated.forEach((p, i) => { (p as any).pairingNumber = maxExistingPN + i + 1; });
-    unrated.forEach((p, i) => { (p as any).pairingNumber = maxExistingPN + rated.length + i + 1; });
+  // Dutch System requires all active players to have pairing numbers.
+  // These should be assigned by the store before calling this function.
+  const missingPN = tournament.players.filter(p => p.active && !p.withdrawn && !p.pairingNumber);
+  if (missingPN.length > 0) {
+    return null;
   }
 
   const matches: Match[] = [];

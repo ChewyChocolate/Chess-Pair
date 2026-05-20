@@ -66,22 +66,25 @@ export function Rounds() {
 
   const startAndGenerate = () => {
     startTournament();
+    const state = useTournamentStore.getState();
+    const freshTournament = state.tournaments.find(t => t.id === activeId);
+    if (!freshTournament) return;
     let matches: Match[] = [];
-    if (tournament.isTeamTournament) {
-      if (tournament.type === 'swiss') {
-        matches = generateTeamSwiss(tournament, 1);
-      } else if (tournament.type === 'round-robin') {
-        matches = generateTeamRoundRobin(tournament, 1);
-      } else if (tournament.type === 'knockout') {
-        matches = generateTeamKnockout(tournament, 1);
+    if (freshTournament.isTeamTournament) {
+      if (freshTournament.type === 'swiss') {
+        matches = generateTeamSwiss(freshTournament, 1);
+      } else if (freshTournament.type === 'round-robin') {
+        matches = generateTeamRoundRobin(freshTournament, 1);
+      } else if (freshTournament.type === 'knockout') {
+        matches = generateTeamKnockout(freshTournament, 1);
       }
     } else {
-      if (tournament.type === 'swiss') {
-        matches = generateSwiss(tournament, 1);
-      } else if (tournament.type === 'round-robin') {
-        matches = generateRoundRobin(tournament.players, 1);
-      } else if (tournament.type === 'knockout') {
-        matches = generateKnockout(tournament, 1);
+      if (freshTournament.type === 'swiss') {
+        matches = generateSwiss(freshTournament, 1);
+      } else if (freshTournament.type === 'round-robin') {
+        matches = generateRoundRobin(freshTournament.players, 1);
+      } else if (freshTournament.type === 'knockout') {
+        matches = generateKnockout(freshTournament, 1);
       }
     }
     generatePairings(1, matches);

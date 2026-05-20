@@ -243,10 +243,10 @@ export const useTournamentStore = create<TournamentStore>()(
             }
           }
 
-          // Auto-assign pairing numbers: rated players by rating desc, then unrated randomly
+          // Auto-assign pairing numbers: rated players by rating desc, then unrated by name asc
           const activePlayers = t.players.filter(p => p.active);
           const rated = activePlayers.filter(p => p.rating).sort((a, b) => (b.rating || 0) - (a.rating || 0));
-          const unrated = activePlayers.filter(p => !p.rating).sort(() => Math.random() - 0.5);
+          const unrated = activePlayers.filter(p => !p.rating).sort((a, b) => a.name.localeCompare(b.name));
           const ordered = [...rated, ...unrated];
           const playersWithPN = t.players.map(p => {
             const idx = ordered.findIndex(op => op.id === p.id);

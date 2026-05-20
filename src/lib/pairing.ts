@@ -737,12 +737,21 @@ export function generateKnockout(tournament: Tournament, round: number): Match[]
     const nextPowerOfTwo = Math.pow(2, Math.ceil(Math.log2(n)));
     const byesCount = nextPowerOfTwo - n;
 
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
+    // Deterministic seeding: sort by pairing number, then rating desc, then name asc
+    const seeded = [...players].sort((a, b) => {
+      const pnA = a.pairingNumber || 999;
+      const pnB = b.pairingNumber || 999;
+      if (pnA !== pnB) return pnA - pnB;
+      const rA = a.rating || 0;
+      const rB = b.rating || 0;
+      if (rA !== rB) return rB - rA;
+      return a.name.localeCompare(b.name);
+    });
     const matches: Match[] = [];
     let boardNumber = 1;
 
-    // First, assign byes to the top seeds (or just the first ones in shuffled for simplicity)
-    const byePlayers = shuffled.splice(0, byesCount);
+    // Byes go to the lowest seeds (highest pairing numbers) — opposite end from top seeds
+    const byePlayers = seeded.splice(seeded.length - byesCount, byesCount);
     byePlayers.forEach(p => {
       matches.push({
         id: uuidv4(),
@@ -754,13 +763,16 @@ export function generateKnockout(tournament: Tournament, round: number): Match[]
       });
     });
 
-    // Pair the remaining players
-    for (let i = 0; i < shuffled.length; i += 2) {
+    // Standard bracket pairing: 1 vs N, 2 vs N-1, ...
+    const remaining = seeded;
+    for (let i = 0; i < remaining.length / 2; i++) {
+      const top = remaining[i];
+      const bottom = remaining[remaining.length - 1 - i];
       matches.push({
         id: uuidv4(),
         round: 1,
-        whiteId: shuffled[i].id,
-        blackId: shuffled[i + 1]?.id || null,
+        whiteId: top.id,
+        blackId: bottom?.id || null,
         result: null,
         boardNumber: boardNumber++
       });
@@ -807,11 +819,17 @@ export function generateTeamKnockout(tournament: Tournament, round: number): Mat
     const nextPowerOfTwo = Math.pow(2, Math.ceil(Math.log2(n)));
     const byesCount = nextPowerOfTwo - n;
 
-    const shuffled = [...teams].sort(() => Math.random() - 0.5);
+    // Deterministic seeding: sort teams by a representative rating (first player's rating)
+    const seeded = [...teams].sort((a, b) => {
+      const repA = tournament.players.find(p => p.id === a.playerIds[0])?.rating || 0;
+      const repB = tournament.players.find(p => p.id === b.playerIds[0])?.rating || 0;
+      if (repA !== repB) return repB - repA;
+      return a.name.localeCompare(b.name);
+    });
     const matches: Match[] = [];
     let boardNumber = 1;
 
-    const byeTeams = shuffled.splice(0, byesCount);
+    const byeTeams = seeded.splice(seeded.length - byesCount, byesCount);
     byeTeams.forEach(team => {
       const teamMatchId = uuidv4();
       team.playerIds.forEach(pid => {
@@ -821,9 +839,9 @@ export function generateTeamKnockout(tournament: Tournament, round: number): Mat
       });
     });
 
-    for (let i = 0; i < shuffled.length; i += 2) {
-      const t1 = shuffled[i];
-      const t2 = shuffled[i + 1];
+    for (let i = 0; i < seeded.length; i += 2) {
+      const t1 = seeded[i];
+      const t2 = seeded[i + 1];
       const teamMatchId = uuidv4();
       if (t2) {
         const maxBoards = Math.max(t1.playerIds.length, t2.playerIds.length);
