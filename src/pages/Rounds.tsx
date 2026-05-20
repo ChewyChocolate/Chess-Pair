@@ -185,6 +185,24 @@ export function Rounds() {
   }
 
   const roundMatches = tournament.matches.filter(m => m.round === selectedRound).sort((a, b) => (a.boardNumber || 0) - (b.boardNumber || 0));
+  
+  // Re-sort for display using current standings (reflects any tiebreak changes)
+  const displayRoundMatches = useMemo(() => {
+    if (!tournament || roundMatches.length === 0) return roundMatches;
+    const standings = calculateStandings(tournament, selectedRound);
+    const playerRank: Record<string, number> = {};
+    standings.forEach((s, i) => { playerRank[s.id] = i + 1; });
+    
+    return [...roundMatches].sort((a, b) => {
+      if (a.result === 'bye' && b.result !== 'bye') return 1;
+      if (b.result === 'bye' && a.result !== 'bye') return -1;
+      if (a.result === 'bye' && b.result === 'bye') return 0;
+      const aBest = Math.min(playerRank[a.whiteId!] || 999, playerRank[a.blackId!] || 999);
+      const bBest = Math.min(playerRank[b.whiteId!] || 999, playerRank[b.blackId!] || 999);
+      return aBest - bBest;
+    });
+  }, [tournament, selectedRound, roundMatches]);
+  
   const isCurrentRound = selectedRound === tournament.currentRound;
   const missingResults = roundMatches.filter(m => m.result === null).length;
   const allResultsEntered = roundMatches.length > 0 && missingResults === 0;
@@ -410,10 +428,10 @@ export function Rounds() {
     doc.save(`${tournament.name.replace(/\s+/g, '_')}_Round${selectedRound}_ScoreSheets.pdf`);
   };
 
-  // Group matches by teamMatchId if it's a team tournament
+  // Group matches by teamMatchId if it's a team tournament (using display order)
   const groupedMatches: Record<string, Match[]> = {};
   if (tournament.isTeamTournament) {
-    roundMatches.forEach(m => {
+    displayRoundMatches.forEach(m => {
       const key = m.teamMatchId || 'individual';
       if (!groupedMatches[key]) groupedMatches[key] = [];
       groupedMatches[key].push(m);
@@ -529,7 +547,7 @@ export function Rounds() {
         </div>
       </div>
 
-      {isCurrentRound && tournament.status === 'active' && roundMatches.length === 0 && (
+      {isCurrentRound && tournament.status === 'active' && displayRoundMatches.length === 0 && (
         <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 text-center">
           
           <Button onClick={handleGenerateNextRound} size="lg">
@@ -647,9 +665,9 @@ export function Rounds() {
                     );
                   })
                 ) : (
-                  roundMatches.map(renderMatchRow)
+                  displayRoundMatches.map(renderMatchRow)
                 )}
-                {roundMatches.length === 0 && (
+                {displayRoundMatches.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">No pairings generated for this round.</td>
                   </tr>

@@ -1,5 +1,6 @@
 import { Match, Player, Tournament, Team } from '../store/useTournamentStore';
 import { v4 as uuidv4 } from 'uuid';
+import { calculateStandings } from './tiebreaks';
 
 export function calculateScores(tournament: Tournament, upToRound?: number) {
   const scores: Record<string, number> = {};
@@ -351,16 +352,38 @@ function generateSwissHeuristic(tournament: Tournament, round: number): Match[] 
           } else if (!check.p1CanW && check.p1CanB) {
             p1Color = 'B';
           } else {
-            // Both are possible, decide based on balance
-            const p1Pref = colorBalance[p1.id] > 0 ? 'B' : colorBalance[p1.id] < 0 ? 'W' : null;
-            const p2Pref = colorBalance[p2.id] > 0 ? 'B' : colorBalance[p2.id] < 0 ? 'W' : null;
+            // Both are possible, decide based on balance preference
+            // Lower pairing number = higher rank, gets preference
+            const p1Bal = colorBalance[p1.id] || 0;
+            const p2Bal = colorBalance[p2.id] || 0;
+            const p1PN = p1.pairingNumber || 999;
+            const p2PN = p2.pairingNumber || 999;
 
-            if (p1Pref === 'W' || p2Pref === 'B') {
-               p1Color = 'W';
-            } else if (p1Pref === 'B' || p2Pref === 'W') {
-               p1Color = 'B';
+            // Calculate "need" for each color: how much balance would improve
+            const p1NeedW = p1Bal <= -1 ? 2 : p1Bal === 0 ? 1 : 0;
+            const p1NeedB = p1Bal >= 1 ? 2 : p1Bal === 0 ? 1 : 0;
+            const p2NeedW = p2Bal <= -1 ? 2 : p2Bal === 0 ? 1 : 0;
+            const p2NeedB = p2Bal >= 1 ? 2 : p2Bal === 0 ? 1 : 0;
+
+            if (p1NeedW > p2NeedW && p1NeedW >= p2NeedB) {
+              p1Color = 'W';
+            } else if (p1NeedB > p2NeedB && p1NeedB >= p2NeedW) {
+              p1Color = 'B';
+            } else if (p2NeedW > p1NeedW && p2NeedW >= p1NeedB) {
+              p1Color = 'B'; // p2 gets W
+            } else if (p2NeedB > p1NeedB && p2NeedB >= p1NeedW) {
+              p1Color = 'W'; // p2 gets B
             } else {
-               p1Color = Math.random() > 0.5 ? 'W' : 'B';
+              // Equal need or neutral; higher rank (lower PN) gets slight preference
+              // to roughly alternate: if p1 has even games, prefer opposite of last
+              const p1Last = colorSequence[p1.id]?.slice(-1)[0];
+              if (p1Last === 'W') {
+                p1Color = 'B';
+              } else if (p1Last === 'B') {
+                p1Color = 'W';
+              } else {
+                p1Color = p1PN < p2PN ? 'W' : 'B';
+              }
             }
           }
 
@@ -504,15 +527,10 @@ function generateSwissHeuristic(tournament: Tournament, round: number): Match[] 
     }
   }
 
-  // Compute player ranks based on current standings (score desc, rating desc)
-  const rankedPlayers = [...tournament.players]
-    .filter(p => p.active && !p.withdrawn)
-    .sort((a, b) => {
-      if (scores[b.id] !== scores[a.id]) return scores[b.id] - scores[a.id];
-      return (b.rating || 0) - (a.rating || 0);
-    });
+  // Sort matches by official tournament standings (with all tiebreaks)
+  const standings = calculateStandings(tournament);
   const playerRank: Record<string, number> = {};
-  rankedPlayers.forEach((p, i) => { playerRank[p.id] = i + 1; });
+  standings.forEach((s, i) => { playerRank[s.id] = i + 1; });
 
   // Sort matches so the highest-ranked player is on Board 1, next on Board 2, etc.
   matches.sort((a, b) => {

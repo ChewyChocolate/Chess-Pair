@@ -1,6 +1,7 @@
 import { Match, Player, Tournament } from '../store/useTournamentStore';
 import { v4 as uuidv4 } from 'uuid';
 import { calculateScores } from './pairing';
+import { calculateStandings } from './tiebreaks';
 
 export type DutchConstraints = {
   played: Record<string, Set<string>>;
@@ -123,8 +124,8 @@ export function canPairDutch(
     preferP1White = p2Due === 'B';
   } else if (p1Due && p2Due) {
     if (p1Due === p2Due) {
-      // Conflict: higher pairing number gets preference
-      preferP1White = p1PN > p2PN ? p1Due === 'W' : p2Due === 'B';
+      // Conflict: lower pairing number (higher ranked) gets preference
+      preferP1White = p1PN < p2PN ? p1Due === 'W' : p2Due === 'B';
     } else {
       // Different due colors - both can be satisfied
       preferP1White = p1Due === 'W';
@@ -138,8 +139,8 @@ export function canPairDutch(
     } else if (p1Bal < p2Bal) {
       preferP1White = true; // p1 has more black, so p1 should get white
     } else {
-      // Equal balance; higher pairing number gets preference
-      preferP1White = p1PN > p2PN;
+      // Equal balance; lower pairing number (higher ranked) gets preference
+      preferP1White = p1PN < p2PN;
     }
   }
 
@@ -597,8 +598,10 @@ export function dutchPairing(tournament: Tournament, round: number): Match[] | n
   });
 
   // Sort matches by the highest-ranked player on each board
+  // Use official tournament standings (with all tiebreaks) for exact consistency
+  const standings = calculateStandings(tournament);
   const playerRank: Record<string, number> = {};
-  playersToPair.forEach((p, i) => { playerRank[p.id] = i + 1; });
+  standings.forEach((s, i) => { playerRank[s.id] = i + 1; });
 
   matches.sort((a, b) => {
     if (a.result === 'bye' && b.result !== 'bye') return 1;
