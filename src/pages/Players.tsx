@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useTournamentStore } from '../store/useTournamentStore';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Trash2, Upload, Download, UserMinus, UserCheck, X } from 'lucide-react';
+import { Trash2, Upload, Download, UserMinus, UserCheck, X, Pencil, Save } from 'lucide-react';
 
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 
@@ -18,6 +18,8 @@ export function Players() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [dialogConfig, setDialogConfig] = useState<{ isOpen: boolean, title?: string, message: string, isAlert?: boolean, onConfirm: () => void } | null>(null);
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{ name: string, rating: string, title: string, club: string }>({ name: '', rating: '', title: '', club: '' });
 
   if (!tournament) {
     return <div className="text-center text-slate-500 mt-10 dark:text-slate-400">Please create a tournament first.</div>;
@@ -175,6 +177,32 @@ export function Players() {
     updatePlayer(id, { requestedByes: byes });
   };
 
+  const startEditingPlayer = (player: typeof tournament.players[0]) => {
+    setEditValues({
+      name: player.name,
+      rating: player.rating?.toString() || '',
+      title: player.title || '',
+      club: player.club || '',
+    });
+    setEditingPlayerId(player.id);
+  };
+
+  const savePlayerEdit = () => {
+    if (editingPlayerId) {
+      updatePlayer(editingPlayerId, {
+        name: editValues.name.trim() || editValues.name,
+        rating: editValues.rating ? parseInt(editValues.rating) : undefined,
+        title: editValues.title.trim() || undefined,
+        club: editValues.club.trim() || undefined,
+      });
+      setEditingPlayerId(null);
+    }
+  };
+
+  const cancelPlayerEdit = () => {
+    setEditingPlayerId(null);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -281,12 +309,38 @@ export function Players() {
                       <span className="text-slate-500 dark:text-slate-400">{player.pairingNumber || '-'}</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                    {player.title && <span className="text-slate-500 mr-1">{player.title}</span>}
-                    {player.name}
-                    {player.club && <span className="text-slate-500 ml-2 text-xs">({player.club})</span>}
+                  <td className="px-6 py-4">
+                    {editingPlayerId === player.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editValues.name}
+                          onChange={(e) => setEditValues(prev => ({ ...prev, name: e.target.value }))}
+                          className="w-32 h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-sm dark:text-white"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {player.title && <span className="text-slate-500 mr-1">{player.title}</span>}
+                        {player.name}
+                        {player.club && <span className="text-slate-500 ml-2 text-xs">({player.club})</span>}
+                      </span>
+                    )}
                   </td>
-                  <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{player.rating || 'Unrated'}</td>
+                  <td className="px-6 py-4">
+                    {editingPlayerId === player.id ? (
+                      <input
+                        type="number"
+                        value={editValues.rating}
+                        onChange={(e) => setEditValues(prev => ({ ...prev, rating: e.target.value }))}
+                        placeholder="Rating"
+                        className="w-20 h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-sm dark:text-white"
+                      />
+                    ) : (
+                      <span className="text-slate-500 dark:text-slate-400">{player.rating || 'Unrated'}</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(!player.withdrawn && player.active) ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'}`}>
                       {player.withdrawn ? 'Withdrawn' : player.active ? 'Active' : 'Inactive'}
@@ -302,31 +356,53 @@ export function Players() {
                     />
                   </td>
                   <td className="px-6 py-4 text-right flex justify-end gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => toggleWithdrawal(player.id, player.withdrawn)} 
-                      title={player.withdrawn ? "Rejoin Tournament" : "Withdraw Player"}
-                      className="text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                    >
-                      {player.withdrawn ? <UserCheck className="w-4 h-4" /> : <UserMinus className="w-4 h-4" />}
-                    </Button>
-                    {tournament.status === 'setup' && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => {
-                          setDialogConfig({
-                            isOpen: true,
-                            title: 'Delete Player',
-                            message: 'Are you sure you want to remove this player?',
-                            onConfirm: () => removePlayer(player.id)
-                          });
-                        }} 
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    {editingPlayerId === player.id ? (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={savePlayerEdit} title="Save" className="text-green-500 hover:text-green-600">
+                          <Save className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={cancelPlayerEdit} title="Cancel">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => startEditingPlayer(player)} 
+                          title="Edit Player"
+                          className="text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => toggleWithdrawal(player.id, player.withdrawn)} 
+                          title={player.withdrawn ? "Rejoin Tournament" : "Withdraw Player"}
+                          className="text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                        >
+                          {player.withdrawn ? <UserCheck className="w-4 h-4" /> : <UserMinus className="w-4 h-4" />}
+                        </Button>
+                        {tournament.status === 'setup' && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => {
+                              setDialogConfig({
+                                isOpen: true,
+                                title: 'Delete Player',
+                                message: 'Are you sure you want to remove this player?',
+                                onConfirm: () => removePlayer(player.id)
+                              });
+                            }} 
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>

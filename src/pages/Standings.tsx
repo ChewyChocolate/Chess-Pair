@@ -25,6 +25,7 @@ export function StandingsTable({ tournament, standings, onPlayerClick, compact, 
           <tr>
             <th className={`py-3 text-center ${compact ? 'px-2' : 'px-6'}`}>#</th>
             <th className={`py-3 ${compact ? 'px-2' : 'px-6'}`}>Name</th>
+            <th className={`py-3 text-center ${compact ? 'px-2' : 'px-6'}`}>Rtg</th>
             <th className={`py-3 text-center ${compact ? 'px-2' : 'px-6'}`}>Pts</th>
             {!compact && tournament.tiebreakOrder.map((tb: TiebreakType) => (
               <th key={tb} className="px-6 py-3 text-center" title={TIEBREAK_LABELS[tb]}>
@@ -66,6 +67,7 @@ export function StandingsTable({ tournament, standings, onPlayerClick, compact, 
                     )}
                   </div>
                 </td>
+                <td className={`py-3 text-center text-slate-500 dark:text-slate-400 ${compact ? 'px-2' : 'px-6'}`}>{player.rating ?? '-'}</td>
                 <td className={`py-3 text-center font-bold text-slate-900 dark:text-white ${compact ? 'px-2' : 'px-6'}`}>{player.score}</td>
                 {!compact && tournament.tiebreakOrder.map((tb: TiebreakType) => (
                   <td key={tb} className="px-6 py-3 text-center text-slate-500 dark:text-slate-400">
