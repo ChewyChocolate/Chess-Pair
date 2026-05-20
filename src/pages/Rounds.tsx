@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTournamentStore, MatchResult, Match } from '../store/useTournamentStore';
 import { Button } from '../components/ui/Button';
 import { generateSwiss, generateRoundRobin, generateTeamSwiss, generateTeamRoundRobin, generateKnockout, generateTeamKnockout, calculateScores } from '../lib/pairing';
@@ -31,14 +31,19 @@ export function Rounds() {
   const [selectedForSwap, setSelectedForSwap] = useState<{ matchId: string, isWhite: boolean } | null>(null);
   const [dialogConfig, setDialogConfig] = useState<{ isOpen: boolean, title?: string, message: string, isAlert?: boolean, onConfirm: () => void } | null>(null);
   const [splitView, setSplitView] = useState(false);
+  const [splitRatio, setSplitRatio] = useState(0.75);
+  const [isDragging, setIsDragging] = useState(false);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
   const [showWarnings, setShowWarnings] = useState(true);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [liveStandings, setLiveStandings] = useState(true);
 
   // Added logic to calculate localized standings
   const activeStandings = useMemo(() => {
     if (!tournament) return [];
-    return calculateStandings(tournament, selectedRound);
-  }, [tournament, selectedRound, tournament?.matches]);
+    const round = liveStandings ? selectedRound : selectedRound - 1;
+    return calculateStandings(tournament, round);
+  }, [tournament, selectedRound, liveStandings, tournament?.matches]);
 
   const previousScores = useMemo(() => {
     if (!tournament) return {};
@@ -79,6 +84,33 @@ export function Rounds() {
     if (!id) return 'BYE';
     return tournament?.players.find(p => p.id === id)?.name || 'Unknown';
   };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!splitContainerRef.current) return;
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const newRatio = (e.clientX - rect.left) / rect.width;
+      setSplitRatio(Math.max(0.25, Math.min(0.75, newRatio)));
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
 
   const startAndGenerate = () => {
     startTournament();
@@ -536,69 +568,73 @@ export function Rounds() {
         </div>
       </div>
 
-      {isCurrentRound && tournament.status === 'active' && displayRoundMatches.length === 0 && (
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 text-center">
-          
-          <Button onClick={handleGenerateNextRound} size="lg">
+{isCurrentRound && tournament.status === 'active' && displayRoundMatches.length === 0 && (
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 text-center">
+          <Button onClick={handleGenerateNextRound} size="sm">
             Auto-Generate Round {selectedRound}
           </Button>
         </div>
       )}
 
-      <div className={`grid gap-6 items-start ${splitView ? 'grid-cols-1 xl:grid-cols-[1fr_minmax(400px,_1fr)]' : 'grid-cols-1'}`}>
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
-            <h3 className="font-semibold text-slate-900 dark:text-white">Round {selectedRound} Pairings</h3>
-            <div className="flex gap-2 print:hidden items-center flex-wrap">
+      <div 
+        ref={splitContainerRef}
+        className={`flex gap-2 items-start ${splitView ? '' : 'flex-col'}`}
+        style={splitView ? { userSelect: isDragging ? 'none' : 'auto' } : undefined}
+      >
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full" style={splitView ? { flex: splitRatio, minWidth: 0 } : undefined}>
+          <div className="p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Round {selectedRound} Pairings</h3>
+            <div className="flex gap-1 print:hidden items-center flex-wrap">
               {isCurrentRound && tournament.status === 'active' && (
                 <Button 
                   variant={swapMode ? 'default' : 'outline'} 
+                  size="sm"
                   onClick={() => {
                     setSwapMode(!swapMode);
                     setSelectedForSwap(null);
                   }} 
-                  className="gap-2"
+                  className="gap-1"
                 >
-                  <ArrowLeftRight className="w-4 h-4" />
-                  <span className="hidden xl:inline">
-                    {swapMode ? 'Cancel Swap' : 'Swap Players'}
+                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                  <span className="hidden xl:inline text-xs">
+                    {swapMode ? 'Cancel' : 'Swap'}
                   </span>
                 </Button>
               )}
-              <Button variant="outline" onClick={() => window.print()} className="gap-2 hidden lg:flex">
-                <Printer className="w-4 h-4" />
-                Print
+              <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1 hidden lg:flex">
+                <Printer className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline text-xs">Print</span>
               </Button>
-              <Button variant="outline" onClick={printScoreSheets} className="gap-2 hidden xl:flex">
-                <FileText className="w-4 h-4" />
-                Score Sheets
+              <Button variant="outline" size="sm" onClick={printScoreSheets} className="gap-1 hidden xl:flex">
+                <FileText className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline text-xs">Sheets</span>
               </Button>
               <Button 
                 variant={splitView ? "default" : "outline"} 
+                size="sm"
                 onClick={() => setSplitView(!splitView)} 
-                className="gap-2"
+                className="gap-1"
                 title="Toggle Split View"
               >
-                Split View
+                <ArrowLeftRight className="w-3.5 h-3.5" />
               </Button>
-              {isCurrentRound && (
-                <Button variant="outline" onClick={handleRollback} className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20">
-                  <Undo2 className="w-4 h-4" />
-                  <span className="hidden lg:inline">Rollback</span>
+{isCurrentRound && (
+                <Button variant="outline" size="sm" onClick={handleRollback} className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20">
+                  <Undo2 className="w-3.5 h-3.5" />
+                  <span className="hidden lg:inline text-xs">Rollback</span>
                 </Button>
               )}
-              {isCurrentRound && tournament.status === 'active' && (
+              {isCurrentRound && tournament.status === 'active' && roundMatches.length > 0 && (
                 <Button 
                   onClick={handleGenerateNextRound} 
                   disabled={!allResultsEntered}
+                  size="sm"
                   className="relative"
                 >
-                  <span className="hidden lg:inline">
-                    {tournament.currentRound === tournament.totalRounds ? 'Complete Tournament' : 'Generate Next Round'}
-                  </span>
-                  <span className="lg:hidden">Next</span>
-                  {!allResultsEntered && roundMatches.length > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-slate-800 font-bold">
+                  <span className="hidden lg:inline text-xs">Complete Round</span>
+                  <span className="lg:hidden text-xs">Next</span>
+                  {!allResultsEntered && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white dark:border-slate-800 font-bold">
                       {missingResults}
                     </span>
                   )}
@@ -608,20 +644,20 @@ export function Rounds() {
           </div>
           
           {swapMode && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 text-sm text-blue-800 dark:text-blue-200 border-b border-blue-100 dark:border-blue-800 text-center print:hidden">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-2 text-xs text-blue-800 dark:text-blue-200 border-b border-blue-100 dark:border-blue-800 text-center print:hidden">
               {selectedForSwap ? 'Select the second player to swap with.' : 'Select the first player to swap.'}
             </div>
           )}
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 font-medium border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-6 py-3 w-16 text-center">Board</th>
-                  <th className="px-6 py-3 text-right w-1/3">White</th>
-                  <th className="px-6 py-3 text-center">Result</th>
-                  <th className="px-6 py-3 w-1/3">Black</th>
-                  <th className="px-6 py-3 text-center w-12 print:hidden"></th>
+                  <th className="px-3 py-2 w-12 text-center">Board</th>
+                  <th className="px-3 py-2 text-right w-1/3">White</th>
+                  <th className="px-3 py-2 text-center">Result</th>
+                  <th className="px-3 py-2 w-1/3">Black</th>
+                  <th className="px-3 py-2 text-center w-10 print:hidden"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -658,7 +694,7 @@ export function Rounds() {
                 )}
                 {displayRoundMatches.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">No pairings generated for this round.</td>
+                    <td colSpan={4} className="px-3 py-6 text-center text-slate-500 dark:text-slate-400">No pairings generated for this round.</td>
                   </tr>
                 )}
               </tbody>
@@ -669,33 +705,55 @@ export function Rounds() {
         </div>
 
         {splitView && (
-          <div className="hidden xl:block w-full print:hidden">
-            <div className="flex justify-between items-end mb-4 px-2">
-              <div className="flex items-center gap-4">
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white">Live Standings</h3>
-                  <p className="text-xs text-slate-500">Updates as results are entered</p>
-                </div>
-                <button
-                  onClick={() => setShowWarnings(!showWarnings)}
-                  className={`p-1.5 rounded-md border transition-colors ${showWarnings ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}
-                  title={showWarnings ? "Hide Warnings" : "Show Warnings"}
-                >
-                  <AlertTriangle className={`w-3.5 h-3.5 ${showWarnings ? 'text-amber-500' : 'text-slate-400'}`} />
-                </button>
-              </div>
-              <div className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-2.5 py-1 rounded-full font-medium">
-                Round {selectedRound}
-              </div>
+          <>
+            <div
+              onMouseDown={handleMouseDown}
+              className="hidden xl:flex w-5 flex-shrink-0 cursor-col-resize items-center justify-center group"
+            >
+              <div className="w-0.5 h-10 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-blue-400 dark:group-hover:bg-blue-500 transition-colors" />
             </div>
-            <StandingsTable 
-              tournament={tournament} 
-              standings={activeStandings} 
-              compact={true}
-              onPlayerClick={setSelectedPlayerId}
-              showWarnings={showWarnings}
-            />
-          </div>
+            <div className="hidden xl:block w-full print:hidden" style={{ flex: 1 - splitRatio, minWidth: 0 }}>
+              <div className="flex justify-between items-end mb-2 px-2">
+                <div className="flex items-center gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Standings</h3>
+                    <p className="text-xs text-slate-500">Updates as results are entered</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setLiveStandings(true)}
+                      className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${liveStandings ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                    >
+                      Live
+                    </button>
+                    <button
+                      onClick={() => setLiveStandings(false)}
+                      className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${!liveStandings ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                    >
+                      After Round
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowWarnings(!showWarnings)}
+                    className={`p-1.5 rounded-md border transition-colors ${showWarnings ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}
+                    title={showWarnings ? "Hide Warnings" : "Show Warnings"}
+                  >
+                    <AlertTriangle className={`w-3.5 h-3.5 ${showWarnings ? 'text-amber-500' : 'text-slate-400'}`} />
+                  </button>
+                </div>
+                <div className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-2.5 py-1 rounded-full font-medium">
+                  Round {selectedRound}
+                </div>
+              </div>
+              <StandingsTable 
+                tournament={tournament} 
+                standings={activeStandings} 
+                compact={true}
+                onPlayerClick={setSelectedPlayerId}
+                showWarnings={showWarnings}
+              />
+            </div>
+          </>
         )}
       </div>
 

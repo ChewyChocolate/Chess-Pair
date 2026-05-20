@@ -204,9 +204,9 @@ export function Players() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Players</h2>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Players</h2>
         <div className="flex gap-2">
             <Button variant="outline" onClick={handleExportCsv} className="gap-2">
               <Download className="w-4 h-4" />
@@ -247,19 +247,19 @@ export function Players() {
       </div>
 
       {tournament.status !== 'completed' && (
-        <form onSubmit={handleAdd} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        <form onSubmit={handleAdd} className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5">
               {tournament.status === 'active' ? 'Late Entry Name *' : 'Name *'}
             </label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Player Name" required className="dark:bg-slate-900 dark:border-slate-700 dark:text-white" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Rating</label>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5">Rating</label>
             <Input type="number" value={rating} onChange={(e) => setRating(e.target.value)} placeholder="e.g. 1500" className="dark:bg-slate-900 dark:border-slate-700 dark:text-white" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title/Club</label>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5">Title/Club</label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. FM / Chess Club" className="dark:bg-slate-900 dark:border-slate-700 dark:text-white" />
           </div>
           <Button type="submit" className="w-full">
@@ -269,28 +269,28 @@ export function Players() {
       )}
 
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <table className="w-full text-sm text-left">
+        <table className="w-full text-xs text-left">
           <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 font-medium border-b border-slate-200 dark:border-slate-700">
             <tr>
-              <th className="px-6 py-3">#</th>
-              <th className="px-6 py-3">Pairing #</th>
-              <th className="px-6 py-3">Name</th>
-              <th className="px-6 py-3">Rating</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Req. Byes (Rounds)</th>
-              <th className="px-6 py-3 text-right">Actions</th>
+              <th className="px-4 py-2">#</th>
+              <th className="px-4 py-2">Pairing #</th>
+              <th className="px-4 py-2">Name</th>
+              <th className="px-4 py-2">Rating</th>
+              <th className="px-4 py-2">Status</th>
+              <th className="px-4 py-2">Req. Byes (Rounds)</th>
+              <th className="px-4 py-2 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {tournament.players.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">No players added yet.</td>
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-500 dark:text-slate-400">No players added yet.</td>
               </tr>
             ) : (
               tournament.players.map((player, index) => (
                 <tr key={player.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 ${(!player.active || player.withdrawn) ? 'opacity-50' : ''}`}>
-                  <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{index + 1}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{index + 1}</td>
+                  <td className="px-4 py-3">
                     {tournament.status === 'setup' ? (
                       <input
                         type="number"
@@ -309,14 +309,14 @@ export function Players() {
                       <span className="text-slate-500 dark:text-slate-400">{player.pairingNumber || '-'}</span>
                     )}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     {editingPlayerId === player.id ? (
                       <div className="flex items-center gap-2">
                         <input
                           type="text"
                           value={editValues.name}
                           onChange={(e) => setEditValues(prev => ({ ...prev, name: e.target.value }))}
-                          className="w-32 h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-sm dark:text-white"
+                          className="w-28 h-7 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs dark:text-white"
                           autoFocus
                         />
                       </div>
@@ -324,38 +324,38 @@ export function Players() {
                       <span className="font-medium text-slate-900 dark:text-white">
                         {player.title && <span className="text-slate-500 mr-1">{player.title}</span>}
                         {player.name}
-                        {player.club && <span className="text-slate-500 ml-2 text-xs">({player.club})</span>}
+                        {player.club && <span className="text-slate-500 ml-2 text-[10px]">({player.club})</span>}
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     {editingPlayerId === player.id ? (
                       <input
                         type="number"
                         value={editValues.rating}
                         onChange={(e) => setEditValues(prev => ({ ...prev, rating: e.target.value }))}
                         placeholder="Rating"
-                        className="w-20 h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-sm dark:text-white"
+                        className="w-16 h-7 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs dark:text-white"
                       />
                     ) : (
                       <span className="text-slate-500 dark:text-slate-400">{player.rating || 'Unrated'}</span>
                     )}
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(!player.withdrawn && player.active) ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'}`}>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${(!player.withdrawn && player.active) ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'}`}>
                       {player.withdrawn ? 'Withdrawn' : player.active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <input 
                       type="text" 
                       placeholder="e.g. 1, 3" 
                       defaultValue={player.requestedByes?.join(', ') || ''}
                       onBlur={(e) => handleRequestedByes(player.id, e.target.value)}
-                      className="w-24 h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 dark:text-white"
+                      className="w-20 h-7 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 dark:text-white"
                     />
                   </td>
-                  <td className="px-6 py-4 text-right flex justify-end gap-2">
+                  <td className="px-4 py-3 text-right flex justify-end gap-1">
                     {editingPlayerId === player.id ? (
                       <>
                         <Button variant="ghost" size="icon" onClick={savePlayerEdit} title="Save" className="text-green-500 hover:text-green-600">

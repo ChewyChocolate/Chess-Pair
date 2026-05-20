@@ -37,34 +37,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row transition-colors duration-200">
       {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-shrink-0 flex flex-col">
-        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+<aside className="w-full md:w-56 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-shrink-0 flex flex-col">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+          <h1 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             ChessPair
           </h1>
-          <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400">
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          <button onClick={() => setDarkMode(!darkMode)} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400">
+            {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
         </div>
         
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
           <Link to="/" className={cn(
-            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+            "flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
             location.pathname === '/' ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
           )}>
-            <HomeIcon className="w-4 h-4" />
+            <HomeIcon className="w-3.5 h-3.5" />
             All Tournaments
           </Link>
         </div>
 
         {tournament && (
           <>
-            <div className="px-6 py-4">
+            <div className="px-4 py-3">
               <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{tournament.name}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{tournament.isTeamTournament ? 'Team' : 'Individual'} {tournament.type} • {tournament.status}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 capitalize">{tournament.isTeamTournament ? 'Team' : 'Individual'} {tournament.type} • {tournament.status}</p>
             </div>
-            <nav className="p-4 pt-0 space-y-1 flex-1">
+            <nav className="p-3 pt-0 space-y-0.5 flex-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
@@ -73,13 +73,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     key={item.path}
                     to={item.path}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                      "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
                       isActive
                         ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
                         : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                     )}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-3.5 h-3.5" />
                     {item.name}
                   </Link>
                 );
@@ -90,7 +90,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 md:p-8 overflow-auto">
+      <main className="flex-1 p-4 md:p-5 overflow-auto">
         <div className="max-w-5xl mx-auto">
           {children}
         </div>

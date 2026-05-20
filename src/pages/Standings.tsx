@@ -114,7 +114,11 @@ export function Standings() {
 
   const displayedRound = viewRound !== null
     ? viewRound
-    : (tournament?.status === 'completed' ? tournament.totalRounds : tournament?.currentRound || 0);
+    : (tournament?.status === 'completed' 
+        ? tournament.totalRounds 
+        : tournament?.status === 'active'
+          ? Math.max(0, tournament.currentRound - 1)  // Last completed round, not current round
+          : 0);
 
   const standings = useMemo(() => {
     if (!tournament) return [];

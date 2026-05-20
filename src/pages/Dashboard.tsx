@@ -20,39 +20,40 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{tournament.name} Dashboard</h2>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{tournament.name} Dashboard</h2>
         <Button 
           variant="outline" 
+          size="sm"
           onClick={() => navigate('/tv')} 
-          className="gap-2 border-blue-200 hover:bg-blue-50 dark:border-blue-900 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+          className="gap-1.5 border-blue-200 hover:bg-blue-50 dark:border-blue-900 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400"
         >
-          <MonitorPlay className="w-4 h-4" />
+          <MonitorPlay className="w-3.5 h-3.5" />
           Launch TV Display
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-          <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Status</h3>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white capitalize">{tournament.status}</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Status</h3>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white capitalize">{tournament.status}</p>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-          <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Round</h3>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">{tournament.currentRound} / {tournament.totalRounds}</p>
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Round</h3>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white">{tournament.currentRound} / {tournament.totalRounds}</p>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-          <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Players</h3>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">{tournament.players.length}</p>
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Players</h3>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white">{tournament.players.length}</p>
         </div>
       </div>
 
       {tournament.status === 'setup' && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-6 rounded-xl">
-          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">Ready to start?</h3>
-          <p className="text-blue-700 dark:text-blue-300 mb-4">Add all your players, then start the tournament to generate the first round pairings.</p>
-          <Button onClick={() => navigate('/players')}>Manage Players</Button>
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-xl">
+          <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">Ready to start?</h3>
+          <p className="text-blue-700 dark:text-blue-300 mb-3 text-xs">Add all your players, then start the tournament to generate the first round pairings.</p>
+          <Button size="sm" onClick={() => navigate('/players')}>Manage Players</Button>
         </div>
       )}
     </div>
