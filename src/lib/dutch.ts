@@ -8,6 +8,7 @@ export type DutchConstraints = {
   colorBalance: Record<string, number>;
   colorSequence: Record<string, ('W' | 'B')[]>;
   floatHistory: Record<string, number[]>;
+  scores: Record<string, number>;
   byes: Set<string>;
   avoidClubPairings: boolean;
   isLastRound: boolean;
@@ -106,9 +107,19 @@ export function canPairDutch(
       if (Math.abs(newBalW) > 2 || Math.abs(newBalB) > 2) return false;
     }
 
-    // Check float direction
-    // Note: Float validation is handled more rigorously at the bracket level
-    // where we know the exact score groups. Here we only do basic checks.
+    // Check float direction (FIDE C.6: no player floats twice in same direction in consecutive rounds)
+    if (!relaxFloats) {
+      const s1 = constraints.scores[p1.id] ?? 0;
+      const s2 = constraints.scores[p2.id] ?? 0;
+      if (s1 !== s2) {
+        const p1FloatDir = s1 > s2 ? -1 : 1; // down-float if higher score, up-float if lower
+        const p2FloatDir = s2 > s1 ? -1 : 1;
+        const p1Last = constraints.floatHistory[p1.id]?.slice(-1)[0] ?? 0;
+        const p2Last = constraints.floatHistory[p2.id]?.slice(-1)[0] ?? 0;
+        if (p1Last !== 0 && p1FloatDir === p1Last) return false;
+        if (p2Last !== 0 && p2FloatDir === p2Last) return false;
+      }
+    }
 
     return true;
   };
@@ -130,8 +141,8 @@ export function canPairDutch(
     }
   } else {
     // Neither has strong preference; use color balance as tiebreak
-    const p1Bal = colorBalance[p1.id] || 0;
-    const p2Bal = colorBalance[p2.id] || 0;
+    const p1Bal = colorBalance[p1.id] ?? 0;
+    const p2Bal = colorBalance[p2.id] ?? 0;
     if (p1Bal > p2Bal) {
       preferP1White = false; // p1 has more white, so p1 should get black
     } else if (p1Bal < p2Bal) {
@@ -411,18 +422,20 @@ function pairBracketEven(
   const backtrackResult = tryBacktrackPairing(players, constraints, false, false);
   if (backtrackResult) return { pairs: backtrackResult.pairs, unpaired: [] };
 
-  // Relax color constraints
-  result = tryDirectPairing(S1, S2, constraints, true, false);
-  if (result) return { pairs: result.pairs, unpaired: [] };
+  // Color relaxation is only permitted in the last bracket (FIDE C.4)
+  if (isLastBracket) {
+    result = tryDirectPairing(S1, S2, constraints, true, false);
+    if (result) return { pairs: result.pairs, unpaired: [] };
 
-  result = tryTranspositions(S1, S2, constraints, true, false);
-  if (result) return { pairs: result.pairs, unpaired: [] };
+    result = tryTranspositions(S1, S2, constraints, true, false);
+    if (result) return { pairs: result.pairs, unpaired: [] };
 
-  exchangeResult = tryExchanges(S1, S2, constraints, true, false);
-  if (exchangeResult) return { pairs: exchangeResult.pairs, unpaired: [] };
+    exchangeResult = tryExchanges(S1, S2, constraints, true, false);
+    if (exchangeResult) return { pairs: exchangeResult.pairs, unpaired: [] };
 
-  const backtrackRelaxColors = tryBacktrackPairing(players, constraints, true, false);
-  if (backtrackRelaxColors) return { pairs: backtrackRelaxColors.pairs, unpaired: [] };
+    const backtrackRelaxColors = tryBacktrackPairing(players, constraints, true, false);
+    if (backtrackRelaxColors) return { pairs: backtrackRelaxColors.pairs, unpaired: [] };
+  }
 
   // If last bracket, also relax floats
   if (isLastBracket) {
@@ -475,9 +488,14 @@ export function dutchPairing(tournament: Tournament, round: number): Match[] | n
 
   const pairedPlayers = new Set<string>();
 
-  // Process forced pairings first
+  // Process forced pairings first (skip invalid ones: rematches or missing players)
   if (tournament.forcedPairings && tournament.forcedPairings.length > 0) {
     tournament.forcedPairings.forEach(fp => {
+      const whiteActive = tournament.players.find(p => p.id === fp.whiteId)?.active && !tournament.players.find(p => p.id === fp.whiteId)?.withdrawn;
+      const blackActive = fp.blackId ? (tournament.players.find(p => p.id === fp.blackId)?.active && !tournament.players.find(p => p.id === fp.blackId)?.withdrawn) : false;
+      if (!whiteActive) return;
+      if (fp.blackId && !blackActive) return;
+      if (fp.blackId && played[fp.whiteId].has(fp.blackId)) return;
       matches.push({
         id: uuidv4(),
         round,
@@ -542,6 +560,7 @@ export function dutchPairing(tournament: Tournament, round: number): Match[] | n
     colorBalance,
     colorSequence,
     floatHistory,
+    scores,
     byes,
     avoidClubPairings: tournament.avoidClubPairings,
     isLastRound: round === tournament.totalRounds,

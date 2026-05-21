@@ -345,12 +345,16 @@ function generateSwissHeuristic(tournament: Tournament, round: number): Match[] 
       // Fallback for last group if everything else fails: greedy pairing ignoring constraints
       while (currentToPair.length > 1) {
         const p1 = currentToPair[0];
-        let p2Index = 1;
+        let p2Index = -1;
         for (let j = 1; j < currentToPair.length; j++) {
           if (!played[p1.id].has(currentToPair[j].id)) {
             p2Index = j;
             break;
           }
+        }
+        if (p2Index < 0) {
+          // All remaining opponents are rematches — leave as unpaired and stop
+          break;
         }
         const p2 = currentToPair[p2Index];
         
