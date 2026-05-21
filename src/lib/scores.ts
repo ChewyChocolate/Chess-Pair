@@ -34,7 +34,13 @@ export function calculateScores(tournament: Tournament, upToRound?: number) {
   // We need to track scores round-by-round to determine floats
   const roundScores: Record<string, number> = {};
   tournament.players.forEach(p => {
-    roundScores[p.id] = 0;
+    // Initialize roundScores with requested bye points so float directions reflect actual standings
+    if (p.requestedByes && p.requestedByes.length > 0) {
+      const applicableByes = upToRound !== undefined ? p.requestedByes.filter(r => r <= upToRound) : p.requestedByes;
+      roundScores[p.id] = applicableByes.length * ptsD;
+    } else {
+      roundScores[p.id] = 0;
+    }
   });
 
   // Group matches by round to compute floats based on pre-round scores

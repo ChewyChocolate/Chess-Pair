@@ -34,6 +34,9 @@ export function calculateDueColor(
     if (last !== secondLast) {
       // Strict alternation pattern exists
       return last === 'W' ? 'B' : 'W';
+    } else {
+      // Two same colors in a row (e.g., W-W or B-B) — opposite color is strongly due
+      return last === 'W' ? 'B' : 'W';
     }
   }
 
@@ -193,46 +196,67 @@ function tryDirectPairing(
 }
 
 /**
- * Generate all transpositions (permutations) of arr
- * For small arrays only; for larger arrays we use a bounded approach
+ * Generate all permutations of arr (for small arrays only).
  */
-function* generateTranspositions(arr: Player[]): Generator<Player[]> {
+function* generateAllPermutations(arr: Player[]): Generator<Player[]> {
   if (arr.length <= 1) {
     yield [...arr];
     return;
   }
 
-  // For small arrays (<= 6), generate all permutations
-  // For larger arrays, use a heuristic approach
-  if (arr.length <= 6) {
-    const used = new Array(arr.length).fill(false);
-    const current: Player[] = [];
+  const used = new Array(arr.length).fill(false);
+  const current: Player[] = [];
 
-    function* backtrack(): Generator<Player[]> {
-      if (current.length === arr.length) {
-        yield [...current];
-        return;
-      }
-      for (let i = 0; i < arr.length; i++) {
-        if (used[i]) continue;
-        used[i] = true;
-        current.push(arr[i]);
-        yield* backtrack();
-        current.pop();
-        used[i] = false;
-      }
+  function* backtrack(): Generator<Player[]> {
+    if (current.length === arr.length) {
+      yield [...current];
+      return;
     }
+    for (let i = 0; i < arr.length; i++) {
+      if (used[i]) continue;
+      used[i] = true;
+      current.push(arr[i]);
+      yield* backtrack();
+      current.pop();
+      used[i] = false;
+    }
+  }
 
-    yield* backtrack();
-  } else {
-    // For larger S2, try a limited set of transpositions
-    // Start with original, then try swapping adjacent pairs
-    yield [...arr];
-    for (let i = 0; i < arr.length - 1; i++) {
-      for (let j = i + 1; j < arr.length; j++) {
-        const swapped = [...arr];
-        [swapped[i], swapped[j]] = [swapped[j], swapped[i]];
-        yield swapped;
+  yield* backtrack();
+}
+
+/**
+ * Generate bounded transpositions using a systematic swap-based approach.
+ * Tries: original, all single swaps, all subsection rotations.
+ */
+function* generateBoundedTranspositions(arr: Player[], maxPermutations: number = 5000): Generator<Player[]> {
+  const n = arr.length;
+
+  yield [...arr];
+  let count = 1;
+
+  // All single swaps (pairwise transpositions)
+  for (let i = 0; i < n - 1 && count < maxPermutations; i++) {
+    for (let j = i + 1; j < n && count < maxPermutations; j++) {
+      const swapped = [...arr];
+      [swapped[i], swapped[j]] = [swapped[j], swapped[i]];
+      yield swapped;
+      count++;
+    }
+  }
+
+  // Subsection rotations (3- to 8-element subsections)
+  if (n > 6 && count < maxPermutations) {
+    for (let len = 3; len <= Math.min(n, 8) && count < maxPermutations; len++) {
+      for (let start = 0; start <= n - len && count < maxPermutations; start++) {
+        const rotated = [...arr];
+        const first = rotated[start];
+        for (let k = start; k < start + len - 1; k++) {
+          rotated[k] = rotated[k + 1];
+        }
+        rotated[start + len - 1] = first;
+        yield rotated;
+        count++;
       }
     }
   }
@@ -248,7 +272,8 @@ function tryTranspositions(
   relaxColors: boolean = false,
   relaxFloats: boolean = false
 ): { pairs: { whiteId: string; blackId: string }[] } | null {
-  for (const permutedS2 of generateTranspositions(S2)) {
+  const generator = S2.length <= 6 ? generateAllPermutations(S2) : generateBoundedTranspositions(S2, 5000);
+  for (const permutedS2 of generator) {
     const result = tryDirectPairing(S1, permutedS2, constraints, relaxColors, relaxFloats);
     if (result) return result;
   }
@@ -257,6 +282,11 @@ function tryTranspositions(
 
 /**
  * Try exchanges between S1 and S2
+ */
+/**
+ * Try exchanges between S1 and S2 following FIDE Dutch systematic order.
+ * For exchange size x: exchange the last x of S1 with the first x of S2,
+ * then try variations moving leftwards in S1 and rightwards in S2.
  */
 function tryExchanges(
   S1: Player[],
@@ -267,29 +297,20 @@ function tryExchanges(
 ): { pairs: { whiteId: string; blackId: string }[]; newS1: Player[]; newS2: Player[] } | null {
   const maxExchange = Math.min(Math.floor(S1.length / 2), Math.floor(S2.length / 2));
 
-  for (let exchangeCount = 1; exchangeCount <= maxExchange; exchangeCount++) {
-    // Try all combinations of exchangeCount players from S1 and S2
-    const s1Indices = getCombinations(S1.length, exchangeCount);
-    const s2Indices = getCombinations(S2.length, exchangeCount);
+  for (let x = 1; x <= maxExchange; x++) {
+    // Try exchanging S1[last-x..last-1] with S2[0..x-1] (canonical)
+    // Then move S1 window leftwards, then S2 window rightwards
+    for (let s1Start = S1.length - x; s1Start >= 0; s1Start--) {
+      for (let s2Start = 0; s2Start <= S2.length - x; s2Start++) {
+        const s1Removed = S1.slice(s1Start, s1Start + x);
+        const s2Removed = S2.slice(s2Start, s2Start + x);
 
-    for (const s1Combo of s1Indices) {
-      for (const s2Combo of s2Indices) {
-        // Create new S1 and S2 with exchanged players
-        const newS1 = [...S1];
-        const newS2 = [...S2];
-
-        // Swap: remove from S1, add to S2, and vice versa
-        const s1Removed = s1Combo.map(i => newS1[i]).sort((a, b) => (a.pairingNumber || 999) - (b.pairingNumber || 999));
-        const s2Removed = s2Combo.map(i => newS2[i]).sort((a, b) => (a.pairingNumber || 999) - (b.pairingNumber || 999));
-
-        // Build new arrays
-        const remainingS1 = newS1.filter((_, i) => !s1Combo.includes(i));
-        const remainingS2 = newS2.filter((_, i) => !s2Combo.includes(i));
+        const remainingS1 = S1.filter((_, i) => i < s1Start || i >= s1Start + x);
+        const remainingS2 = S2.filter((_, i) => i < s2Start || i >= s2Start + x);
 
         const exchangedS1 = [...remainingS1, ...s2Removed];
         const exchangedS2 = [...remainingS2, ...s1Removed];
 
-        // Sort by pairing number to maintain order
         exchangedS1.sort((a, b) => (a.pairingNumber || 999) - (b.pairingNumber || 999));
         exchangedS2.sort((a, b) => (a.pairingNumber || 999) - (b.pairingNumber || 999));
 
@@ -305,37 +326,14 @@ function tryExchanges(
 }
 
 /**
- * Get all combinations of k indices from 0 to n-1
- */
-function getCombinations(n: number, k: number): number[][] {
-  if (k === 0) return [[]];
-  if (k > n) return [];
-
-  const result: number[][] = [];
-
-  function backtrack(start: number, current: number[]) {
-    if (current.length === k) {
-      result.push([...current]);
-      return;
-    }
-    for (let i = start; i < n; i++) {
-      current.push(i);
-      backtrack(i + 1, current);
-      current.pop();
-    }
-  }
-
-  backtrack(0, []);
-  return result;
-}
-
-/**
- * Pair a single score bracket using FIDE Dutch System
+ * Pair a single score bracket using FIDE Dutch System.
+ * upFloaterIds: players who floated down from a higher bracket (they should end up in S2).
  */
 function pairBracket(
   players: Player[],
   constraints: DutchConstraints,
-  isLastBracket: boolean
+  isLastBracket: boolean,
+  upFloaterIds: Set<string> = new Set()
 ): { pairs: { whiteId: string; blackId: string }[]; unpaired: Player[] } {
   if (players.length === 0) return { pairs: [], unpaired: [] };
 
@@ -347,7 +345,7 @@ function pairBracket(
     for (let i = sorted.length - 1; i >= 0; i--) {
       const floater = sorted[i];
       const remaining = sorted.slice(0, i).concat(sorted.slice(i + 1));
-      const result = pairBracketEven(remaining, constraints, isLastBracket);
+      const result = pairBracketEven(remaining, constraints, isLastBracket, upFloaterIds);
       if (result.unpaired.length === 0) {
         return { pairs: result.pairs, unpaired: [floater] };
       }
@@ -355,11 +353,11 @@ function pairBracket(
     // If no single floater works, force-float the last player
     const floater = sorted[sorted.length - 1];
     const remaining = sorted.slice(0, -1);
-    const result = pairBracketEven(remaining, constraints, isLastBracket);
+    const result = pairBracketEven(remaining, constraints, isLastBracket, upFloaterIds);
     return { pairs: result.pairs, unpaired: [floater, ...result.unpaired] };
   }
 
-  return pairBracketEven(sorted, constraints, isLastBracket);
+  return pairBracketEven(sorted, constraints, isLastBracket, upFloaterIds);
 }
 
 /**
@@ -394,17 +392,39 @@ function tryBacktrackPairing(
 }
 
 /**
- * Pair an even-sized bracket
+ * Pair an even-sized bracket.
+ * upFloaterIds: players from a higher bracket who should be placed in S2.
  */
 function pairBracketEven(
   players: Player[],
   constraints: DutchConstraints,
-  isLastBracket: boolean
+  isLastBracket: boolean,
+  upFloaterIds: Set<string> = new Set()
 ): { pairs: { whiteId: string; blackId: string }[]; unpaired: Player[] } {
   const n = players.length;
   const mid = Math.ceil(n / 2);
-  const S1 = players.slice(0, mid);
-  const S2 = players.slice(mid);
+  let S1 = players.slice(0, mid);
+  let S2 = players.slice(mid);
+
+  // FIDE Dutch: up-floaters should be in S2, not S1.
+  // If any up-floater ended up in S1, swap them with the highest-ranked native in S2.
+  const s1UpFloaterIndices: number[] = [];
+  for (let i = 0; i < S1.length; i++) {
+    if (upFloaterIds.has(S1[i].id)) s1UpFloaterIndices.push(i);
+  }
+  if (s1UpFloaterIndices.length > 0) {
+    const s2NativeIndices: number[] = [];
+    for (let i = 0; i < S2.length; i++) {
+      if (!upFloaterIds.has(S2[i].id)) s2NativeIndices.push(i);
+    }
+    for (let i = 0; i < Math.min(s1UpFloaterIndices.length, s2NativeIndices.length); i++) {
+      const s1Idx = s1UpFloaterIndices[i];
+      const s2Idx = s2NativeIndices[i];
+      [S1[s1Idx], S2[s2Idx]] = [S2[s2Idx], S1[s1Idx]];
+    }
+    S1.sort((a, b) => (a.pairingNumber || 999) - (b.pairingNumber || 999));
+    S2.sort((a, b) => (a.pairingNumber || 999) - (b.pairingNumber || 999));
+  }
 
   // Try strict pairing first
   let result = tryDirectPairing(S1, S2, constraints, false, false);
@@ -576,6 +596,7 @@ export function dutchPairing(tournament: Tournament, round: number): Match[] | n
 
   const sortedScores = Array.from(scoreGroups.keys()).sort((a, b) => b - a);
   let floaters: Player[] = [];
+  let upFloaterIds = new Set<string>();
   const allPairs: { whiteId: string; blackId: string }[] = [];
 
   for (let i = 0; i < sortedScores.length; i++) {
@@ -587,10 +608,11 @@ export function dutchPairing(tournament: Tournament, round: number): Match[] | n
     group.sort((a, b) => (a.pairingNumber || 999) - (b.pairingNumber || 999));
 
     const isLastBracket = i === sortedScores.length - 1;
-    const result = pairBracket(group, constraints, isLastBracket);
+    const result = pairBracket(group, constraints, isLastBracket, upFloaterIds);
 
     allPairs.push(...result.pairs);
     floaters = result.unpaired;
+    upFloaterIds = new Set(floaters.map(p => p.id));
   }
 
   // If there are still unpaired floaters at the end, something went wrong
@@ -615,7 +637,12 @@ export function dutchPairing(tournament: Tournament, round: number): Match[] | n
   // Use official tournament standings (with all tiebreaks) for exact consistency
   const standings = calculateStandings(tournament);
   const playerRank: Record<string, number> = {};
-  standings.forEach((s, i) => { playerRank[s.id] = i + 1; });
+  standings.forEach((s, i) => {
+    // Withdrawn players should not affect board ordering
+    if (!s.withdrawn) {
+      playerRank[s.id] = i + 1;
+    }
+  });
 
   matches.sort((a, b) => {
     if (a.result === 'bye' && b.result !== 'bye') return 1;

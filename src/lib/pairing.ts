@@ -386,7 +386,10 @@ function generateSwissHeuristic(tournament: Tournament, round: number): Match[] 
           } else if (p1Pref === 'B' || p2Pref === 'W') {
             p1Color = 'B';
           } else {
-            p1Color = Math.random() > 0.5 ? 'W' : 'B';
+            // Deterministic tiebreak: higher-ranked player (lower pairing number) gets White
+            const p1PN = p1.pairingNumber || 999;
+            const p2PN = p2.pairingNumber || 999;
+            p1Color = p1PN <= p2PN ? 'W' : 'B';
           }
         }
 

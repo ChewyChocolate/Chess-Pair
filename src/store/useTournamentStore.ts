@@ -194,7 +194,11 @@ export const useTournamentStore = create<TournamentStore>()(
       removePlayer: (id) =>
         set((state) => updateActive(state, t => ({
           ...t,
-          players: t.players.filter(p => p.id !== id)
+          players: t.players.filter(p => p.id !== id),
+          teams: t.teams.map(team => ({
+            ...team,
+            playerIds: team.playerIds.filter(pid => pid !== id)
+          }))
         }))),
 
       clearPlayers: () =>
@@ -264,8 +268,10 @@ export const useTournamentStore = create<TournamentStore>()(
 
       generatePairings: (round, matches) =>
         set((state) => updateActive(state, t => {
-          const filteredMatches = t.matches.filter(m => m.round !== round);
-          return { ...t, matches: [...filteredMatches, ...matches], forcedPairings: [] }; // Clear forced pairings after generating
+          // Preserve completed matches for this round; only replace unplayed ones
+          const completedMatches = t.matches.filter(m => m.round === round && m.result !== null);
+          const otherMatches = t.matches.filter(m => m.round !== round);
+          return { ...t, matches: [...otherMatches, ...completedMatches, ...matches], forcedPairings: [] }; // Clear forced pairings after generating
         })),
 
       updateMatchResult: (matchId, result) =>
